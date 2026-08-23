@@ -1,0 +1,24 @@
+{
+  "n": 18,
+  "title": "Crossover: classical vs learned policy, switched inside one balance",
+  "date": "2026-08-23",
+  "script": "robot/_ab_cycle.py",
+  "question": "Does the learned policy really beat the classical controller, or was run 16's 1.17 deg a lucky segment?",
+  "verdict": "ruled-out",
+  "headline": "A lucky segment. Paired inside one continuous balance, classical is quieter in 5 of 6 cycles. But the policy travels 1.9x further per segment — which is exactly the mismatch the verifier flagged (wheel gain 0.148 vs 0.430, ratio 0.35) showing up on hardware as wandering into walls.",
+  "segment_labels": ["classical", "policy"],
+  "series": [["rms_x100", "pitch RMS (deg)", 0.01], ["wheel", "wheel position (deg)", 1]],
+  "hub_output": [
+    "cycle  classical RMS  policy RMS   diff | classical travel  policy travel",
+    "    0           1.19        1.34  +0.15 |               --             16",
+    "    1           1.12        1.24  +0.12 |                1             41",
+    "    2           1.75        2.84  +1.09 |               69            120",
+    "    3           3.71        4.67  +0.96 |               54             64",
+    "    4           6.75        4.32  -2.43 |                0             28",
+    "    9           1.44        3.13  +1.69 |               --            127",
+    "RMS classical 2.66 +- 2.03, policy 2.92 +- 1.32; classical quieter 5 of 6",
+    "travel median: classical 28 deg, policy 52 deg (1.9x)",
+    "clamping median: classical 18%, policy 0%",
+    "all segments ran at a confirmed 200 Hz"
+  ]
+}

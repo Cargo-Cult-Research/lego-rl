@@ -160,12 +160,29 @@ Identical policy, identical rate, batteries two millivolts apart. The filter is
 the only difference and it is worth 6.3×. Battery drift across the session was
 10 mV, so the confound that made the previous run uninterpretable is gone.
 
-**1.17° is the lowest pitch RMS this robot has produced.** But "learned beats
-classical" is *not* established: classical scored 3.31° and 1.56° on identical
-configurations at the same voltage, and 1.17 sits inside that 2× spread. What
-sits far outside it is raw versus filtered. The filter is also a patch over a
-known sim-to-real gap — the right fix is to put the resonance in the simulator
-so the policy learns to reject it.
+**"Learned beats classical" was not established, and run 18 settled it: it
+doesn't.** Switching the controller back and forth inside one continuous
+balance — so release, floor position and battery hit both equally — classical
+is quieter in **5 of 6 paired cycles** (2.66° vs 2.92°). Run 16's 1.17° was a
+lucky segment inside 2× variance, exactly as the notes said at the time. In the
+two cleanest cycles the gap is only 0.12–0.15°, so they are near-equivalent
+when nothing is going wrong.
+
+**The verifier's one flagged mismatch showed up on hardware.** The policy
+travels **1.9× further** per segment (52° vs 28°) and drove into a wall. That
+is precisely what the Jacobian predicted — `wheel: learned 0.148 vs sim-tuned
+0.430, ratio 0.35` — a neural network's position feedback measured as 3× too
+weak in simulation, cashing out as a robot that wanders off. A specific
+real-world failure predicted from one number is what the project exists to
+test.
+
+They also fail differently in character: the policy never saturates its duty
+limit (0% median) while classical rides it 18% of the time. Gentle and drifting
+versus aggressive and station-keeping.
+
+The gyro filter remains a patch over a known sim-to-real gap — the right fix is
+to put the drivetrain compliance in the simulator so the policy learns to
+reject it.
 
 ## What the verifier caught (2026-08-22)
 
