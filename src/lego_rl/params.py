@@ -17,7 +17,8 @@ class PhysicalParams:
     wheel_radius: float = 0.0375       # m, measured 75 mm dia 2026-08-22
     axle_half_width: float = 0.06      # m, half-span of the lumped wheel cylinder
     wheel_mass: float = 0.058          # kg, both wheels, measured 29 g each
-    body_mass: float = 0.352           # kg, measured: 410 g total - 58 g wheels
+    body_mass: float = 0.371           # kg, measured: 429 g total - 58 g wheels
+                                       # (bracing added 2026-08-22: 410 -> 429 g)
     com_height: float = 0.05           # m, measured. LOW -> fast pendulum (~14 rad/s);
                                        # raising the hub would make everything easier.
     # --- motors (2x Technic L motor, device id 46, one per wheel, direct
