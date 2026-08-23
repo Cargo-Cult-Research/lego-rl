@@ -37,7 +37,18 @@ def main():
 act(state) -> duty in [-1, 1].
 state = [pitch, pitch_rate, wheel_angle, wheel_rate] in rad / rad/s,
 sign conventions as in src/lego_rl/env.py."""
-from math import tanh
+from umath import exp
+
+
+def tanh(x):
+    """Pybricks umath has exp but no tanh, so define it. The clamp keeps
+    exp() from overflowing; tanh is saturated to within 1e-7 by |x| = 8."""
+    if x > 8.0:
+        return 1.0
+    if x < -8.0:
+        return -1.0
+    e = exp(2.0 * x)
+    return (e - 1.0) / (e + 1.0)
 
 OBS_SCALE = {fmt(OBS_SCALE)}
 W1 = {fmt(W1)}
