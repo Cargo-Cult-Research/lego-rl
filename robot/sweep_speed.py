@@ -29,8 +29,13 @@ MAX_DUTY = 40
 RATE_TAU_MS = 30
 K_SYNC = 0.0        # exonerated by sweep_sync.py; off so it cannot confound
 
-# (k_speed, speed_tau_ms)
-SEGS = ((0.30, 0), (0.0, 0), (0.30, 30))
+# (k_speed, speed_tau_ms). Removing the term outright is NOT a segment any
+# more: sweep run 6 showed the robot falls within 2.5 s without it (pitch RMS
+# 3.2 -> 11.7 deg, peak 42 deg), which killed the run before it reached the
+# informative config. Keep the authority in every segment, vary only the
+# filter -- the term is both the largest contributor (mean 18.5, peak 84 duty%)
+# and the only unfiltered high-frequency path left.
+SEGS = ((0.30, 0), (0.30, 20), (0.30, 40))
 COLORS = (Color.GREEN, Color.YELLOW, Color.CYAN)
 
 FRICTION_COMP = 10

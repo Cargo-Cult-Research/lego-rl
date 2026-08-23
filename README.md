@@ -65,13 +65,26 @@ What has been ruled in and out so far:
   exactly. Setting `K_SYNC = 0` changes the pitch oscillation not at all
   (10.6 Hz vs 10.4 Hz at 0.05), and the wheel-difference channel wanders at
   2 Hz — nowhere near the shake (`robot/sweep_sync.py`).
-- **Open**: `K_SPEED × motor.speed()` — the second raw differentiator in the
-  control law, structurally identical to the gyro-rate term that was already
-  found guilty, feeding the same delayed loop, and never once logged
-  (`robot/sweep_speed.py`). And mechanical compliance between the hub (where
-  the IMU is) and the wheels: feeding back a sensor that is not rigidly
-  attached to the controlled body (`robot/ring_test.py`, needs a hands-on
-  run).
+- **Ruled out**: `K_SPEED × motor.speed()`, the other raw differentiator. It is
+  not a bug, it is load-bearing — set it to zero and the robot falls within
+  2.5 s (pitch RMS 3.2° → 11.7°, peak 42°). It is nonetheless the largest term
+  in the controller (mean 18.5, peak 94 duty% against a clamp of 40), so it
+  was tested filtered instead: 20 ms and 40 ms both make things *worse*
+  (RMS 2.86° raw vs 4.89° and 4.00°), which is what lag on a stabilising term
+  should do (`robot/sweep_speed.py`).
+- **Open**: the *slope* of the friction compensation. Ramping it removed the
+  discontinuity but not the steepness — at `FRICTION_COMP=10` over
+  `FC_RAMP=4` the small-signal slope is 1 + 10/4 = 3.5, so the loop has 3.5×
+  the gain for small commands, which is exactly the regime a limit cycle lives
+  in. High small-signal gain plus a fixed delay gives an oscillation whose
+  frequency is set by the delay and whose amplitude self-adjusts:
+  gain-insensitive and amplitude-stable, matching every run
+  (`robot/sweep_fc.py`). Also still open: mechanical compliance between the
+  hub (where the IMU is) and the wheels (`robot/ring_test.py`, needs a
+  hands-on run).
+
+Best configuration measured so far — raw speed term, 30 ms gyro filter, yaw
+loop off, duty clamped to 40 — holds **2.86° pitch RMS, ±8.8° peak**.
 
 ## What the verifier caught (2026-08-22)
 
