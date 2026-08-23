@@ -37,7 +37,8 @@ VERDICTS = {
     "guilty": ("guilty", "#e3a9a0"),
     "ruled-out": ("ruled out", "#a9d6a0"),
     "progress": ("progress", "#9ec1de"),
-    "void": ("no verdict", "#a8b0b8"),
+    "inconclusive": ("inconclusive", "#d8c48a"),
+    "void": ("no data", "#a8b0b8"),
     "open": ("open", "#d8c48a"),
 }
 
@@ -173,9 +174,14 @@ def run_charts(run: dict) -> str:
         series.append((label, list(zip(t, [r[ci] * scale for r in rows]))))
     if not series:
         return ""
+    # Sample rate varies by run (50 Hz for the balancing sweeps, 200 Hz for the
+    # open-loop ring test), so derive it rather than asserting it.
+    steps = sorted({rows[i + 1][ti] - rows[i][ti] for i in range(min(40, len(rows) - 1))})
+    dt_ms = steps[len(steps) // 2] if steps else 20
+    rate = round(1000 / dt_ms) if dt_ms else 0
     out = [f'<figure>{line_chart(series, title=meta["title"], xlabel="time (s)", ylabel="", bands=run_bands(run), height=250)}'
            f'<figcaption>{html.escape(meta.get("script", ""))} '
-           f'&middot; {len(rows)} samples at 50 Hz'
+           f'&middot; {len(rows)} samples at {rate} Hz'
            f'</figcaption></figure>']
 
     for spec in meta.get("extra_charts", []):

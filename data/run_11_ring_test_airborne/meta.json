@@ -1,0 +1,35 @@
+{
+  "n": 11,
+  "title": "Open-loop ring test: no structural resonance at 10 Hz",
+  "date": "2026-08-22",
+  "script": "robot/ring_test.py",
+  "question": "Is the ring mechanical \u2014 compliance between the hub/IMU and the wheels?",
+  "verdict": "inconclusive",
+  "headline": "Not supported. Three taps decay to nothing in ~400 ms with no 10 Hz peak; only 12% of spectral mass lies in the 8-13 Hz band. But the robot was held in the air, so the tyre-against-ground compliance that is actually in the loop was never excited.",
+  "series": [
+    [
+      "gyro_dps",
+      "gyro (deg/s)",
+      1.0
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1.0
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8339",
+    "taps_captured: 3 of 3",
+    "seg tap1 : 240 samples in 1200 ms = 200 Hz",
+    "seg tap2 : 240 samples in 1200 ms = 200 Hz",
+    "seg tap3 : 240 samples in 1200 ms = 200 Hz",
+    "seg pulse : 500 samples in 2500 ms = 200 Hz"
+  ],
+  "segment_labels": [
+    "tap 1",
+    "tap 2",
+    "tap 3",
+    "pulses, wheels held"
+  ]
+}

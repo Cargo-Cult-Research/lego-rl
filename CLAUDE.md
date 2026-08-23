@@ -37,7 +37,7 @@ hub's stdout into telemetry and chatter, and validates the CSV:
 
 `meta.json` fields: `n` (order on the page), `title`, `date`, `script`,
 `question` (what this run was meant to settle), `verdict` (one of `guilty`,
-`ruled-out`, `progress`, `void`, `open`), `headline` (the one-sentence answer),
+`ruled-out`, `progress`, `inconclusive`, `void`, `open`), `headline` (the one-sentence answer),
 `series` (`[column, label, scale]` — which channels to plot), optional
 `segment_labels` (one per value of the `seg` column, for multi-config runs) or
 explicit `segments`, and optional `extra_charts` (`spectrum:col:scale`,

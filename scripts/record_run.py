@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
-VERDICTS = ("guilty", "ruled-out", "progress", "void", "open")
+VERDICTS = ("guilty", "ruled-out", "progress", "inconclusive", "void", "open")
 
 
 def split_log(text: str) -> tuple[str, list[str], list[str]]:
