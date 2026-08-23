@@ -128,3 +128,51 @@ def test_imu_sees_flex_but_reward_does_not():
     mujoco.mj_forward(env.model, env.data)
     assert math.isclose(env._imu_state()[0] - env._true_state()[0],
                         math.radians(4.0), abs_tol=1e-9)
+
+
+def test_wheel_mass_survives_every_model_branch():
+    """Regression: the rotor <inertial> override was once emitted
+    unconditionally, which discards the wheel geom's mass and silently produced
+    a massless-wheel plant whenever backlash was off. Several comparisons ran
+    against it before an open-loop mass check caught it."""
+    import math
+    import mujoco
+    from lego_rl.model import build_mjcf
+    from lego_rl.params import nominal_params
+    from dataclasses import replace
+
+    base = nominal_params()
+    want = base.body_mass + base.wheel_mass
+    for lash in (0.0, 2.0):
+        for hz in (0.0, 11.5):
+            p = replace(base, motor_backlash_deg=lash, hub_resonance_hz=hz)
+            m = mujoco.MjModel.from_xml_string(build_mjcf(p))
+            got = float(m.body("chassis").subtreemass[0])
+            # backlash adds a 1 g rotor body; nothing may LOSE mass
+            assert got >= want - 1e-9, f"lash={lash} hz={hz}: {got} < {want}"
+            assert got <= want + 2e-3
+            wdof = m.dof_M0[m.joint("wheel").dofadr[0]]
+            assert wdof > 1e-6, f"lash={lash} hz={hz}: wheel dof inertia {wdof}"
+
+
+def test_backlash_is_a_deadband_not_a_floppy_joint():
+    """The encoder must move while the tyre does not, until the play is taken
+    up. This is the property that makes it backlash rather than compliance."""
+    import math
+    import mujoco
+    from lego_rl.model import build_mjcf
+    from lego_rl.params import nominal_params
+    from dataclasses import replace
+
+    p = replace(nominal_params(), motor_backlash_deg=2.0, hub_resonance_hz=0.0)
+    m = mujoco.MjModel.from_xml_string(build_mjcf(p))
+    d = mujoco.MjData(m)
+    wa = m.joint("wheel").qposadr[0]
+    la = m.joint("lash").qposadr[0]
+    d.ctrl[0] = 0.05
+    for _ in range(10):
+        mujoco.mj_step(m, d)
+    enc = math.degrees(d.qpos[wa])
+    tyre = enc + math.degrees(d.qpos[la])
+    assert enc > 1.0, f"encoder barely moved: {enc}"
+    assert abs(tyre) < 0.5 * enc, f"tyre moved with the encoder: {tyre} vs {enc}"

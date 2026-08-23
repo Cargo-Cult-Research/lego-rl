@@ -9,6 +9,10 @@ import math
 from dataclasses import dataclass, replace
 
 MEASURED, DATASHEET, GUESS = "MEASURED", "DATASHEET", "GUESS"
+# INFERRED: not observed directly, derived from a fit or from another signal.
+# Distinct from MEASURED on purpose -- an inferred number invites a wide
+# randomization range, a measured one does not.
+INFERRED = "INFERRED"
 
 
 @dataclass
@@ -29,6 +33,28 @@ class PhysicalParams:
     v_nominal: float = 7.4             # V, anchor from the Pybricks reference dc() scaling
     motor_friction_duty: float = 0.10  # measured: dead zone to ~10% duty, kinetic intercept 7.4%
     battery_v: float = 8.37            # V, measured 2026-08-22; 6xAA: ~9.5 fresh, ~6.5 dying
+    # --- gearbox backlash ---
+    # A few degrees of play in the L motor's gearbox, felt by hand. This is a
+    # DEADBAND IN THE TORQUE PATH, which is a textbook limit-cycle generator:
+    # frequency set by the loop rather than by a spring (so it barely moves
+    # with gain, which is what eleven runs of hardware kept showing), and
+    # amplitude set by the width of the play.
+    #
+    # The encoder is on the motor side of the gearbox, so while the play is
+    # being taken up the encoder reports rotation the WHEEL is not doing. The
+    # controller's wheel-angle and wheel-speed terms are therefore reading a
+    # signal that is partly fiction, twice per oscillation.
+    # DEFAULT OFF: the mechanism is right but the implementation is not yet
+    # credible -- 0.1 deg and 2.0 deg produce identical trajectories, so the
+    # lash joint is currently acting as a free joint rather than a deadband.
+    # See the status note in model.py.
+    motor_backlash_deg: float = 0.0    # half-width of the deadband at the wheel
+    lash_damping: float = 2e-5         # N*m*s/rad inside the deadband; small, and
+                                       # only there to stop free-flight chatter
+    rotor_inertia_frac: float = 0.30   # motor-side inertia as a fraction of the
+                                       # wheel's, i.e. the gearbox's reflected
+                                       # inertia. Sets how fast the play is
+                                       # crossed, so it matters.
     # --- sensing / timing ---
     imu_angle_bias: float = 0.0        # deg, offset on integrated pitch
     imu_rate_bias: float = 0.0         # deg/s, gyro bias
@@ -43,11 +69,16 @@ class PhysicalParams:
     # AND RAISED its frequency 10.6 -> 11.5 Hz. Adding mass lowers a resonance;
     # it rose, so stiffness grew faster than mass. That is the signature.
     # Set hub_resonance_hz = 0 to get the old rigid model back.
-    # DEFAULT OFF pending calibration -- see the note in model.py. The model
-    # reproduces the hardware failure mode but is quantitatively too severe:
-    # the classical controller cannot survive it and PPO cannot learn in it
-    # (episode length 138 of 2000). Set to 11.5 to enable.
-    hub_resonance_hz: float = 0.0      # Hz; measured 11.5 braced, 10.6 unbraced
+    # DEFAULT OFF pending calibration -- see the note in model.py.
+    #
+    # And treat the 11.5 Hz carefully: the FLEX WAS NEVER OBSERVED. What was
+    # observed is a frequency in a closed-loop gyro signal, on one build, with
+    # a particular controller and delay in the loop -- from which a mount mode
+    # was inferred. The bracing result (81% quieter, 10.6 -> 11.5 Hz) is just
+    # as consistent with bracing tightening the frame the MOTORS sit in, which
+    # is slop rather than flex. So this is INFERRED, and it gets a wide range
+    # over the shape of the model rather than a tight one around a number.
+    hub_resonance_hz: float = 0.0      # Hz; 11.5 inferred braced, 10.6 unbraced
     hub_damping_ratio: float = 0.08    # GUESS; the ring persists, so lightly damped
     hub_mass_frac: float = 0.40        # GUESS; fraction of body_mass in the hub
     hub_imu_coupling: float = 1.0      # fraction of mount motion the gyro sees.
@@ -77,10 +108,15 @@ PROVENANCE = {
     "imu_rate_noise": MEASURED,   # sysid_imu 2026-08-22: bias -0.03, drift ~1 deg/30 s
     "delay_ctrl_steps": MEASURED, # sysid_latency 2026-08-22: loop jitter <=1 ms, act 15-19 ms
     "ground_friction": GUESS,
-    "hub_resonance_hz": MEASURED,   # run 12: braced 11.5 Hz, unbraced 10.6
+    "hub_resonance_hz": INFERRED,   # a closed-loop gyro frequency, not a mount
+                                    # measurement -- the flex was never seen
     "hub_damping_ratio": GUESS,     # ring persists in closed loop -> lightly damped
     "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
     "hub_imu_coupling": GUESS,      # calibrated, not measured -- see model.py
+    "motor_backlash_deg": GUESS,    # "a few degrees" by hand; measure it by
+                                    # holding a wheel and rocking the other
+    "lash_damping": GUESS,
+    "rotor_inertia_frac": GUESS,
     "control_hz": MEASURED,       # we set it
 }
 
@@ -111,14 +147,21 @@ class DomainRandomization:
     imu_angle_noise: tuple = (0.02, 0.10)   # deg
     imu_rate_noise: tuple = (0.05, 0.50)    # deg/s
     delay_ctrl_steps: tuple = (2, 6)        # ticks, i.e. 10-30 ms around measured ~19
-    # Only the frequency is measured, and only on one build -- unbraced was
-    # 10.6 Hz, braced 11.5, and a rebuild could land anywhere nearby. Damping
-    # and mass split are guesses. So randomize widely: a policy that only works
-    # at exactly 11.5 Hz has learned the wrong thing.
-    hub_resonance_hz: tuple = (8.0, 16.0)
-    hub_damping_ratio: tuple = (0.03, 0.20)
-    hub_mass_frac: tuple = (0.25, 0.55)
-    hub_imu_coupling: tuple = (0.10, 0.40)
+    # Nothing here was observed directly -- a frequency was inferred from a
+    # closed-loop gyro signal on ONE build. So randomize over the SHAPE of the
+    # model, not around a number: the range reaches from effectively rigid to
+    # far softer than inferred, and the coupling can be near zero. A policy
+    # that only works at 11.5 Hz has learned the wrong thing, and so has one
+    # that requires the mode to exist at all.
+    hub_resonance_hz: tuple = (6.0, 45.0)
+    hub_damping_ratio: tuple = (0.02, 0.40)
+    hub_mass_frac: tuple = (0.15, 0.60)
+    hub_imu_coupling: tuple = (0.0, 0.50)
+    # Felt by hand as "a few degrees" -- span from almost none to a lot ONCE
+    # the deadband is validated. Pinned at zero until then; training against an
+    # unvalidated nonlinearity is worse than not modelling it.
+    motor_backlash_deg: tuple = (0.0, 0.0)
+    rotor_inertia_frac: tuple = (0.10, 0.60)
 
     def sample(self, p: PhysicalParams, rng) -> PhysicalParams:
         u = lambda r: float(rng.uniform(r[0], r[1]))
@@ -141,6 +184,8 @@ class DomainRandomization:
             hub_damping_ratio=u(self.hub_damping_ratio),
             hub_mass_frac=u(self.hub_mass_frac),
             hub_imu_coupling=u(self.hub_imu_coupling),
+            motor_backlash_deg=u(self.motor_backlash_deg),
+            rotor_inertia_frac=u(self.rotor_inertia_frac),
             delay_ctrl_steps=int(rng.integers(self.delay_ctrl_steps[0],
                                               self.delay_ctrl_steps[1] + 1)),
         )
