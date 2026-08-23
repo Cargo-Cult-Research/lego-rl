@@ -164,6 +164,8 @@ def run_charts(run: dict) -> str:
     meta, cols, rows = run["meta"], run["cols"], run["rows"]
     if not rows:
         return ""
+    if "t_ms" not in cols:
+        return ""          # not a time series; nothing to plot
     ti = cols.index("t_ms")
     t = [r[ti] / 1000 for r in rows]
     series = []

@@ -1,0 +1,22 @@
+{
+  "n": 14,
+  "title": "Making inference 11x faster: what actually costs time in MicroPython",
+  "date": "2026-08-22",
+  "script": "robot/_bench_fast.py",
+  "question": "Where do 13 ms go for 104 multiply-accumulates, and can the policy fit 200 Hz?",
+  "verdict": "progress",
+  "headline": "18125 us -> 1607 us, 32% of budget, duty error 0.0018. Two results invert the usual instincts: a float tanh lookup table is SLOWER than calling exp(), and inlining the weights as literals was worth more than the float-to-integer conversion.",
+  "segment_labels": ["as exported", "unrolled floats", "+ float tanh LUT", "fixed point Q10", "unrolled fixed Q12", "+ interpolated tanh"],
+  "series": [["us_per_call", "microseconds per call", 1]],
+  "hub_output": [
+    "v0 as-exported  : 18125 us/call",
+    "v1 unrolled     : 10296 us/call   err 0.00000",
+    "v2 +tanh LUT    : 11642 us/call   err -0.00021",
+    "v3 fixed point  :  2758 us/call   err  0.01720",
+    "ref float unrolled-none : 16422 us/call",
+    "fast_q10 unrolled       :  1261 us/call",
+    "fast_q12 unrolled       :  1241 us/call",
+    "fast_q12i interpolated  :  1607 us/call",
+    "budget 5000 us at 200 Hz"
+  ]
+}

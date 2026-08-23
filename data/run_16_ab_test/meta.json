@@ -1,13 +1,29 @@
 {
-  "n": 13,
+  "n": 16,
   "title": "Classical vs learned policy, four segments on one battery",
   "date": "2026-08-22",
   "script": "robot/_ab_test.py",
   "question": "Is the fast policy's regression the ~11 Hz resonance, or was it just a flat battery?",
   "verdict": "guilty",
   "headline": "The resonance. Same policy, same 200 Hz, batteries 2 mV apart: raw gyro clamps 47% of steps and falls at 4.0 s; a 30 ms low-pass gives 1.17 deg RMS, zero clamping, and the full 10 s. Battery drift across the whole session was 10 mV, so the confound that ruined the previous run is gone.",
-  "segment_labels": ["classical", "policy, raw gyro", "policy, 30 ms filter", "classical again"],
-  "series": [["rms_x100", "pitch RMS (deg)", 0.01], ["peak_x10", "peak pitch (deg)", 0.1]],
+  "segment_labels": [
+    "classical",
+    "policy, raw gyro",
+    "policy, 30 ms filter",
+    "classical again"
+  ],
+  "series": [
+    [
+      "rms_x100",
+      "pitch RMS (deg)",
+      0.01
+    ],
+    [
+      "peak_x10",
+      "peak pitch (deg)",
+      0.1
+    ]
+  ],
   "hub_output": [
     "battery mV: 7907",
     "classical_a  , 7877 , 200 , 331 , 75 ,  7 , 10000 , 0",

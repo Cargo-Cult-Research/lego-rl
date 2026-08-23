@@ -18,6 +18,12 @@ published with a confound in it.
 
 Auto-rearm between segments, because the policy already falls inside 10 s and
 a fall must not cost us the later controllers.
+
+After each measured window the classical controller keeps the robot up,
+blinking, until it is picked up. The first version cut the motors the instant
+the 10 s elapsed, which drops a balancing robot on the floor and reads to the
+operator as "it fell" -- three of four segments in run 16 were reported as
+falls when the hub's own log said they survived.
 """
 from __future__ import annotations
 
@@ -129,10 +135,36 @@ for si in range(len(SEGS)):
         n += 1
         wait(max(0, t0 + DT * n - watch.time()))
 
+    lasted = watch.time() - t0
+
+    # Measurement over -- but do NOT just cut the motors on a robot that is
+    # currently balancing, which drops it on the floor and reads to the
+    # operator as "it fell". Keep it up, blink, and wait to be picked up.
+    if not fell:
+        hold = watch.time()
+        while watch.time() - hold < 15000:
+            pitch = hub.imu.rotation(PITCH_AXIS) - pitch0
+            if abs(pitch) > FALL_DEG or hub.imu.acceleration(Axis.Z) < 6000:
+                break          # caught, lifted, or genuinely toppled
+            rate_f += ALPHA * (hub.imu.angular_velocity(PITCH_AXIS) - rate_f)
+            la = left.angle()
+            ra = right.angle()
+            duty = (K_ANGLE * pitch + K_RATE * rate_f
+                    + K_MOTOR * (la + ra) / 2
+                    + K_SPEED * (left.speed() + right.speed()) / 2)
+            if duty > MAX_DUTY:
+                duty = MAX_DUTY
+            elif duty < -MAX_DUTY:
+                duty = -MAX_DUTY
+            left.dc(duty * V_NOM / hub.battery.voltage())
+            right.dc(duty * V_NOM / hub.battery.voltage())
+            n2 = (watch.time() - hold) // 250
+            hub.light.on(Color.BLUE if n2 % 2 else COLORS[si])
+            wait(DT)
+
     left.dc(0)
     right.dc(0)
     hub.light.on(Color.BLUE)
-    lasted = watch.time() - t0
     rate_hz = (1000 * n // lasted) if lasted else 0
     rms = int(100 * (sum_sq / n) ** 0.5) if n else 0
     print(label, ",", batt, ",", rate_hz, ",", rms, ",", int(10 * peak),

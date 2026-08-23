@@ -1,0 +1,17 @@
+{
+  "n": 15,
+  "title": "200 Hz achieved — and the robot got worse",
+  "date": "2026-08-22",
+  "script": "robot/_bundle_fast.py",
+  "question": "Does running the policy at its design rate of 200 Hz improve it?",
+  "verdict": "inconclusive",
+  "headline": "The opposite: pitch RMS 2.43 -> 8.06 deg and it fell at 5.5 s where the 69 Hz version survived 10. Two explanations were live and this run could not separate them — the ~11 Hz resonance, or a battery at 7918 mV against 8340-8472 for the baseline, with clamping at 22%.",
+  "series": [["pitch_x10", "pitch (deg)", 0.1], ["duty", "duty (%)", 1]],
+  "hub_output": [
+    "forward pass: 1565 us of a 5000 us budget",
+    "fell_at_ms: 5480 elapsed: 5480 steps: 1096",
+    "rate: 200 Hz (want ~200)",
+    "duty clamped on 246 of 1096 steps",
+    "pitch_rms_x100: 806 peak_x10: 449"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "n": 13,
+  "title": "The learned policy meets the robot — and misses its budget 2.6x",
+  "date": "2026-08-22",
+  "script": "robot/balance_policy.py",
+  "question": "Does the PPO policy transfer to hardware, and does it fit the 5 ms control budget?",
+  "verdict": "progress",
+  "headline": "It balanced the full 10 s at 2.43 deg RMS — while running at 69 Hz, not 200, because the forward pass costs 13.1 ms against a 5 ms budget. A policy trained at 200 Hz surviving on a third of that, with ~14 ms of extra actuation delay, is a better robustness result than the RMS suggests.",
+  "series": [["pitch_x10", "pitch (deg)", 0.1], ["duty", "duty (%)", 1]],
+  "hub_output": [
+    "forward pass: 13065 us of a 5000 us budget",
+    "WARNING: over half the control period goes to the policy",
+    "fell_at_ms: -1 elapsed: 10006 steps: 694",
+    "rate: 69 Hz (want ~200)",
+    "duty clamped on 68 of 694 steps",
+    "pitch_rms_x100: 243 peak_x10: 95"
+  ]
+}

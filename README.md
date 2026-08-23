@@ -30,8 +30,11 @@ training, export — against a known answer.
       — signs all agree; after removing a uniform 0.66× scale the feedback
       *shape* matches the CEM controller within 2% (pitch rate) and 6% (wheel
       rate), with wheel position 2× low. See "The verifier's verdict" below
-- [ ] **M5** deploy: export MLP, time it on the hub, balance on hardware
-      (`scripts/export_policy.py`, `robot/balance_policy.py`)
+- [x] **M5** deploy: the learned policy balances on hardware at a full 200 Hz
+      (`scripts/export_policy.py`, `scripts/make_fast_policy.py`,
+      `robot/balance_policy.py`) — **1.17° pitch RMS, zero duty clamping**,
+      after an 11× inference speedup and one filter that the sim should have
+      taught it
 - [ ] **M6** swing-up from lying flat — the task linear feedback cannot do
       (`scripts/train_ppo.py --task swingup`)
 
@@ -141,6 +144,58 @@ centimetre of drift cost the same and survival always dominates.
 |---|---|---|---|---|
 | before | 9.40 s | 63% | 40.3 cm | 40.3 cm |
 | after | 10.00 s | 100% | 7.1 cm | 3.0 cm |
+
+## The policy on the robot (M5)
+
+The exported net cost **13–18 ms against a 5 ms budget**, so the first hardware
+run went at 69 Hz — and balanced anyway, 2.43° RMS. 13 ms for 104
+multiply-accumulates is ~125 µs per MAC on a 100 MHz Cortex-M4F with a hardware
+FPU: four orders of magnitude off the metal, so essentially none of it was
+arithmetic. Six implementations later (`robot/_bench_fast.py`):
+
+| variant | µs/call | of budget |
+|---|---|---|
+| as exported (generators, `exp` tanh) | 18125 | 362% |
+| unrolled floats | 10296 | 206% |
+| unrolled + float tanh LUT | 11642 | 233% |
+| fixed point Q10, lists and loops | 2758 | 55% |
+| fully unrolled fixed point Q12 | 1241 | 25% |
+| **+ interpolated tanh (deployed)** | **1607** | **32%** |
+
+Two results that invert the usual instincts. **A float tanh lookup table is
+slower than calling `exp()`** — `exp()` is one C call, the table lookup is ten
+interpreted operations, each boxing a float. On this platform you count
+interpreter dispatches, not FLOPs. And **inlining the weights as literals was
+worth 2.2× on its own**, more than the float→integer conversion, by deleting
+104 bounds-checked list subscripts per pass. Fixed point wins because small
+ints are tagged immediates that never touch the heap, not because integer
+arithmetic is faster.
+
+Then the speedup made the robot *worse* — RMS 2.43° → 8.06°, fell at 5.5 s.
+Running at 69 Hz had been acting as a low-pass filter nobody designed. At
+200 Hz the policy chases the ~11 Hz structural mode, on raw gyro, having
+trained in a sim with no resonance in it.
+
+Run 16 settled it: four segments, one battery, classical repeated at both ends
+to bracket drift.
+
+| segment | battery | RMS | peak | clamp | lasted |
+|---|---|---|---|---|---|
+| classical | 7877 mV | 3.31° | 7.5° | 7% | 10 s |
+| policy, raw gyro | 7874 mV | 7.35° | 43.5° | 47% | **fell at 4.0 s** |
+| **policy, 30 ms filter** | 7872 mV | **1.17°** | **3.7°** | **0%** | 10 s |
+| classical again | 7867 mV | 1.56° | 4.4° | 15% | 10 s |
+
+Identical policy, identical rate, batteries two millivolts apart. The filter is
+the only difference and it is worth 6.3×. Battery drift across the session was
+10 mV, so the confound that made the previous run uninterpretable is gone.
+
+**1.17° is the lowest pitch RMS this robot has produced.** But "learned beats
+classical" is *not* established: classical scored 3.31° and 1.56° on identical
+configurations at the same voltage, and 1.17 sits inside that 2× spread. What
+sits far outside it is raw versus filtered. The filter is also a patch over a
+known sim-to-real gap — the right fix is to put the resonance in the simulator
+so the policy learns to reject it.
 
 ## What the verifier caught (2026-08-22)
 
