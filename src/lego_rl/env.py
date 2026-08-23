@@ -30,6 +30,15 @@ from .params import DomainRandomization, nominal_params
 # Baked into export; linearize.py undoes it via the chain rule.
 OBS_SCALE = np.array([3.0, 0.3, 0.03, 0.03])
 PITCH_LIMIT = math.radians(30.0)
+# Weight on lateral position in the balance reward. At the previous 0.1 a 5 cm
+# drift cost 0.00025 of reward against 0.028 for a 5 deg lean -- 111x weaker,
+# and position only became comparable at half a metre. A policy cannot learn
+# feedback it is never rewarded for, and the first trained policy duly came
+# back with a wheel-position gain 33x below the classical controller it is
+# verified against (three of four gains matched within 25%; that one did not).
+# 10.0 makes a 5 deg lean and a 5 cm drift cost the same, which is the
+# trade-off the classical controller actually makes.
+POS_WEIGHT = 10.0
 
 
 class BalancerEnv(gym.Env):
@@ -94,7 +103,8 @@ class BalancerEnv(gym.Env):
         pitch = self.data.qpos[self._adr["pitch"][0]]
         x = self.data.qpos[self._adr["slide_x"][0]]
         if self.task == "balance":
-            reward = 1.0 - (pitch / PITCH_LIMIT) ** 2 - 0.1 * x * x - 1e-3 * duty * duty
+            reward = (1.0 - (pitch / PITCH_LIMIT) ** 2 - POS_WEIGHT * x * x
+                      - 1e-3 * duty * duty)
             terminated = bool(abs(pitch) > PITCH_LIMIT or abs(x) > 2.0)
         else:
             reward = math.cos(pitch) - 0.05 * x * x - 1e-3 * duty * duty

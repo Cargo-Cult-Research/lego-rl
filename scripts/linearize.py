@@ -1,8 +1,25 @@
 #!/usr/bin/env python
 """THE verifier: linearize the learned policy at the upright equilibrium and
-compare its Jacobian to the four classical gains. Rough agreement validates
-the whole pipeline (model, sysID, randomization, training, export) against a
-known answer; disagreement is a specific bug to hunt."""
+compare its Jacobian to the classical gains.
+
+Two baselines are printed, deliberately, because they answer different
+questions and only one of them is a fair test:
+
+  reference   the published Pybricks gains (88, 0.35, 0.72, 0.19), tuned for a
+              tall heavy robot. We have since shown they are WRONG for this
+              build -- they survive 0% of full episodes in the measured sim and
+              fell in 0.755 s on hardware. A mismatch here is expected and
+              means nothing. It is printed for context, not as a test.
+  sim-tuned   (10.71, 0.87, 0.43, 0.30), from CEM in the measured sim
+              (scripts/tune_gains.py), which holds 100% of full episodes and
+              is what the hardware actually balances on. This is the real
+              comparison: it is the best linear controller for the same plant
+              PPO was trained on, derived independently of PPO.
+
+Near the upright equilibrium the optimal policy IS approximately linear, so a
+correctly trained policy should land near the sim-tuned column. Per CLAUDE.md,
+do not tune either side to force agreement -- a mismatch is a bug to hunt.
+"""
 import argparse
 
 import numpy as np
@@ -12,6 +29,7 @@ from lego_rl.classical import PYBRICKS_GAINS, si_to_pybricks
 from lego_rl.env import OBS_SCALE
 
 NAMES = ["pitch", "pitch_rate", "wheel", "wheel_rate"]
+SIM_TUNED = np.array([10.71, 0.87, 0.43, 0.30])
 
 
 def policy_jacobian(model, eps=1e-3):
@@ -30,22 +48,42 @@ def policy_jacobian(model, eps=1e-3):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("model_path")
+    ap.add_argument("--eps", type=float, default=1e-3)
     args = ap.parse_args()
 
     model = PPO.load(args.model_path, device="cpu")
-    J_scaled = policy_jacobian(model)
+    J_scaled = policy_jacobian(model, eps=args.eps)
     J_si = J_scaled * OBS_SCALE            # chain rule: obs = OBS_SCALE * state
     g_pb = si_to_pybricks(J_si)            # -> duty% per deg / deg/s
 
     a0, _ = model.predict(np.zeros(4, dtype=np.float32), deterministic=True)
-    print(f"duty at equilibrium: {float(np.asarray(a0).reshape(-1)[0]):+.4f} "
-          "(should be ~0)\n")
-    print(f"{'state':<11} {'learned':>10} {'pybricks':>10} {'ratio':>8}")
+    bias = float(np.asarray(a0).reshape(-1)[0])
+    print(f"duty at equilibrium: {bias:+.4f} (should be ~0)")
+    if abs(bias) > 0.05:
+        print("  ^ a real offset: the policy pushes even when perfectly upright,")
+        print("    so it is holding a lean rather than balancing about zero.")
+    print()
+
+    ref = np.asarray(PYBRICKS_GAINS, dtype=float)
+    print(f"{'state':<11} {'learned':>10} {'sim-tuned':>10} {'ratio':>7}"
+          f"   |{'reference':>10} {'ratio':>7}")
+    print("-" * 62)
     for i, n in enumerate(NAMES):
-        r = g_pb[i] / PYBRICKS_GAINS[i]
-        print(f"{n:<11} {g_pb[i]:>10.3f} {PYBRICKS_GAINS[i]:>10.3f} {r:>8.2f}")
-    print("\n(units: duty% per deg or deg/s, positive = same sign convention "
-          "as the reference)")
+        rt = g_pb[i] / SIM_TUNED[i]
+        rr = g_pb[i] / ref[i]
+        print(f"{n:<11} {g_pb[i]:>10.3f} {SIM_TUNED[i]:>10.3f} {rt:>7.2f}"
+              f"   |{ref[i]:>10.3f} {rr:>7.2f}")
+
+    print("\nunits: duty% per deg or per deg/s; positive = the reference's sign\n"
+          "convention. The sim-tuned column is the test; reference is context.")
+
+    ratios = g_pb / SIM_TUNED
+    signs_ok = bool(np.all(np.sign(g_pb) == np.sign(SIM_TUNED)))
+    within = np.abs(np.log(np.abs(ratios) + 1e-12))
+    print(f"\nsigns all agree: {signs_ok}")
+    print("worst |log ratio| vs sim-tuned: "
+          f"{within.max():.2f} on {NAMES[int(np.argmax(within))]} "
+          f"(0 = exact, 0.69 = 2x, 1.6 = 5x)")
 
 
 if __name__ == "__main__":
