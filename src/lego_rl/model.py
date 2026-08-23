@@ -20,6 +20,36 @@ balanced fine at 69 Hz came to clamp 47% of its steps and fall at 200 Hz.
 
 The observation reads the HUB angle; reward and termination read the true
 chassis angle. That asymmetry is the whole point.
+
+STATUS: default OFF (hub_resonance_hz = 0), because it is not yet calibrated.
+
+What works. It reproduces the failure the old sim could not: the policy trained
+without it survives 10 s on raw gyro in the rigid model and 1.16 s with this
+one, matching hardware run 16 where raw gyro clamped 47% of steps and fell at
+4.0 s. The mechanism is visible in the traces -- 1 deg of flex at 60 Hz is
+377 deg/s of gyro rate, which K_RATE = 0.87 turns into 328% of commanded duty.
+
+What does not. It is too severe at every setting tried. The classical
+controller falls in ~1 s where hardware runs it indefinitely, PPO cannot learn
+in it at all (episode length 138 of 2000), and no frequency from 8 to 60 Hz nor
+any IMU coupling from 1.0 down to 0.05 reconciles both hardware facts.
+
+Two constraints found on the way, worth not rediscovering:
+
+  * Flex amplitude is MASS-INDEPENDENT. Stiffness goes as I*w^2 and the driving
+    torque is the hub's own inertial reaction, also proportional to I, so
+    theta_flex ~ alpha/w^2 and hub_mass_frac cancels. Confirmed by sweeping it
+    0.40 to 0.05 with no effect. Frequency is the only lever on amplitude.
+  * The blocker is NOT this model. Calibrating it needs "classical survives" as
+    a target, and the sim's classical controller is not the hardware one: the
+    CEM gains were tuned filter-free and sit at the edge of stability in the
+    rigid sim, so adding the 30 ms filter drops them from 10.00 s to 1.00 s
+    with no compliance present at all. On hardware those same gains REQUIRE the
+    filter. Until the gains are re-tuned with the filter in the loop, there is
+    no usable calibration target.
+
+Next step: CEM again, with the filter in the loop and compliance enabled, and
+compare the gains it finds against the ones that actually work on hardware.
 """
 import math
 

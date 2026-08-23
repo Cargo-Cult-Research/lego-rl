@@ -43,9 +43,18 @@ class PhysicalParams:
     # AND RAISED its frequency 10.6 -> 11.5 Hz. Adding mass lowers a resonance;
     # it rose, so stiffness grew faster than mass. That is the signature.
     # Set hub_resonance_hz = 0 to get the old rigid model back.
-    hub_resonance_hz: float = 11.5     # Hz, measured 2026-08-22 (braced build)
+    # DEFAULT OFF pending calibration -- see the note in model.py. The model
+    # reproduces the hardware failure mode but is quantitatively too severe:
+    # the classical controller cannot survive it and PPO cannot learn in it
+    # (episode length 138 of 2000). Set to 11.5 to enable.
+    hub_resonance_hz: float = 0.0      # Hz; measured 11.5 braced, 10.6 unbraced
     hub_damping_ratio: float = 0.08    # GUESS; the ring persists, so lightly damped
     hub_mass_frac: float = 0.40        # GUESS; fraction of body_mass in the hub
+    hub_imu_coupling: float = 1.0      # fraction of mount motion the gyro sees.
+                                       # 1.0 assumes the mode is purely in the
+                                       # pitch plane and the IMU is rigid to the
+                                       # flexing element -- both unlikely. See
+                                       # the calibration note in model.py.
     # --- loop / sim ---
     control_hz: float = 200.0          # DT=5 ms in the Pybricks loop
     physics_dt: float = 0.001
@@ -71,6 +80,7 @@ PROVENANCE = {
     "hub_resonance_hz": MEASURED,   # run 12: braced 11.5 Hz, unbraced 10.6
     "hub_damping_ratio": GUESS,     # ring persists in closed loop -> lightly damped
     "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
+    "hub_imu_coupling": GUESS,      # calibrated, not measured -- see model.py
     "control_hz": MEASURED,       # we set it
 }
 
@@ -108,6 +118,7 @@ class DomainRandomization:
     hub_resonance_hz: tuple = (8.0, 16.0)
     hub_damping_ratio: tuple = (0.03, 0.20)
     hub_mass_frac: tuple = (0.25, 0.55)
+    hub_imu_coupling: tuple = (0.10, 0.40)
 
     def sample(self, p: PhysicalParams, rng) -> PhysicalParams:
         u = lambda r: float(rng.uniform(r[0], r[1]))
@@ -129,6 +140,7 @@ class DomainRandomization:
             hub_resonance_hz=u(self.hub_resonance_hz),
             hub_damping_ratio=u(self.hub_damping_ratio),
             hub_mass_frac=u(self.hub_mass_frac),
+            hub_imu_coupling=u(self.hub_imu_coupling),
             delay_ctrl_steps=int(rng.integers(self.delay_ctrl_steps[0],
                                               self.delay_ctrl_steps[1] + 1)),
         )

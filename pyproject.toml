@@ -19,3 +19,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lego_rl"]
+
+[tool.pytest.ini_options]
+# robot/ holds Pybricks scripts that only run on the hub, and two of them are
+# named *_test.py (ring_test, _ab_test), which pytest happily collects and then
+# dies importing pybricks. The package is the only thing worth collecting.
+testpaths = ["tests"]

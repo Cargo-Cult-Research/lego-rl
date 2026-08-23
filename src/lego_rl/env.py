@@ -165,8 +165,9 @@ class BalancerEnv(gym.Env):
         s = self._true_state().copy()
         adr = self._adr.get("hub_flex")
         if adr is not None:
-            s[0] += float(self.data.qpos[adr[0]])
-            s[1] += float(self.data.qvel[adr[1]])
+            k = self.p.hub_imu_coupling
+            s[0] += k * float(self.data.qpos[adr[0]])
+            s[1] += k * float(self.data.qvel[adr[1]])
         return s
 
     def _obs(self):
