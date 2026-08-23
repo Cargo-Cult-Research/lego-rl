@@ -1,0 +1,30 @@
+{
+  "n": 5,
+  "title": "The yaw loop, instrumented for the first time",
+  "date": "2026-08-22",
+  "script": "robot/sweep_sync.py",
+  "question": "Is sync = K_SYNC x (left - right) driving the oscillation?",
+  "verdict": "ruled-out",
+  "headline": "Innocent. K_SYNC = 0 leaves the pitch ring at 10.6 Hz against 10.4 Hz at 0.05, and the wheel-difference channel wanders at 2 Hz.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "wheel_diff",
+      "left - right (deg)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8459",
+    "fell_in_ksync: None"
+  ],
+  "segment_labels": [
+    "K_SYNC = 0.15",
+    "K_SYNC = 0 (off)",
+    "K_SYNC = 0.05"
+  ]
+}

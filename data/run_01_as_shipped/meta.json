@@ -1,0 +1,42 @@
+{
+  "n": 1,
+  "title": "As shipped: raw gyro term, hard friction step",
+  "date": "2026-08-22",
+  "script": "robot/balance_debug.py",
+  "question": "Why does it shake wildly instead of balancing?",
+  "verdict": "guilty",
+  "headline": "A 14 Hz limit cycle. The rate term averages 129 duty% of contribution against 50 for the angle term \u2014 the gyro is driving the robot, not damping it.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8522",
+    "gains: 10.71 0.8700001 0.43 0.3 fc: 10",
+    "stopped, fell_at_ms: -1 steps: 1000 elapsed: 5000"
+  ],
+  "segments": [
+    [
+      0,
+      1.16,
+      "held by hand"
+    ],
+    [
+      1.16,
+      5.0,
+      "released"
+    ]
+  ],
+  "extra_charts": [
+    "spectrum:pitch_x10:0.1",
+    "terms"
+  ]
+}

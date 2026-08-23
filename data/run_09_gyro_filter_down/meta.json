@@ -1,0 +1,30 @@
+{
+  "n": 9,
+  "title": "Sweeping the gyro filter down: less filtering is worse",
+  "date": "2026-08-22",
+  "script": "robot/sweep_ratefilt.py",
+  "question": "Does the ring frequency track the gyro filter, making it a loop mode rather than a mechanical one?",
+  "verdict": "progress",
+  "headline": "Unanswered \u2014 tau = 15 ms fell (peak 43 deg, 250 deg of drift) and the raw segment never ran. But tau = 30 with the friction compensation off is the calmest configuration yet: 2.24 deg RMS, +-7.3 deg peak.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1.0
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8393",
+    "fell_in_seg: 1"
+  ],
+  "segment_labels": [
+    "gyro tau = 30 ms",
+    "gyro tau = 15 ms",
+    "raw (never ran)"
+  ]
+}

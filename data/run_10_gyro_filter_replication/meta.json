@@ -1,0 +1,32 @@
+{
+  "n": 10,
+  "title": "Replication: less gyro filtering is monotonically worse",
+  "date": "2026-08-22",
+  "script": "robot/sweep_ratefilt.py",
+  "question": "Repeat of run 9 \u2014 does the trend hold, and what does the raw-gyro segment do?",
+  "verdict": "ruled-out",
+  "headline": "Trend replicated and completed. 30 ms: 3.20 deg RMS. 15 ms: 7.14. Raw: 9.39 RMS with a 43.6 deg peak and 236 deg of drift. The gyro filter's phase lag is not what feeds the ring.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1.0
+    ]
+  ],
+  "hub_output": [
+    "SEGS = ((0, 30), (0, 15), (0, 0))   # (friction_comp, rate_tau_ms)",
+    "try 1: rc=1 TimeoutError",
+    "battery mV: 8381",
+    "fell_in_seg: 2"
+  ],
+  "segment_labels": [
+    "gyro tau = 30 ms",
+    "gyro tau = 15 ms",
+    "gyro raw"
+  ]
+}

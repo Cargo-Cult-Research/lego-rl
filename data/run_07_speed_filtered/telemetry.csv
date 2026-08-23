@@ -1,7 +1,3 @@
-SEGS = ((0.30, 0), (0.30, 20), (0.30, 40))
-Searching for any hub with Pybricks service...
-battery mV: 8427
-fell_in_seg: None
 t_ms,seg,pitch_x10,duty,wheel_speed_dps,speed_term_duty
 2,0,0,0,0,0
 21,0,0,-1,-1,0
@@ -379,6 +375,3 @@ t_ms,seg,pitch_x10,duty,wheel_speed_dps,speed_term_duty
 7461,2,-25,-40,-312,-74
 7481,2,11,0,-333,-83
 7501,2,36,22,-339,-90
-END
-
-[exited with code 0]

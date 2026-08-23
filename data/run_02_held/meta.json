@@ -1,0 +1,26 @@
+{
+  "n": 2,
+  "title": "First filtered attempt, but never released",
+  "date": "2026-08-22",
+  "script": "robot/balance_debug.py",
+  "question": "Does the 30 ms gyro filter plus a ramped friction term help?",
+  "verdict": "void",
+  "headline": "No verdict: the robot was held for the whole 5 s. Wheels at exactly 0 deg throughout, pitch inside 0.6 deg.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8507",
+    "gains: 10.71 0.8700001 0.43 0.3 fc: 10 ramp: 8 tau: 30",
+    "stopped, fell_at_ms: -1 steps: 1000 elapsed: 5000"
+  ]
+}

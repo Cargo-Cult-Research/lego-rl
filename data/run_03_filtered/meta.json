@@ -1,0 +1,27 @@
+{
+  "n": 3,
+  "title": "30 ms gyro low-pass and a ramped friction term",
+  "date": "2026-08-22",
+  "script": "robot/balance_debug.py",
+  "question": "Do the two discontinuities explain the shake?",
+  "verdict": "progress",
+  "headline": "14 Hz -> 9 Hz, peak gyro 404 -> 210 deg/s, net travel 7.0 -> 2.1 cm, and it survives the full 8 s instead of falling.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "try 1: rc=1 ",
+    "battery mV: 8482",
+    "gains: 10.71 0.8700001 0.43 0.3 fc: 10 ramp: 4 tau: 30",
+    "stopped, fell_at_ms: -1 steps: 1600 elapsed: 8000"
+  ]
+}

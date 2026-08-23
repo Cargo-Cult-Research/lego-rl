@@ -1,0 +1,37 @@
+{
+  "n": 4,
+  "title": "Open-loop ring test (no feedback at all)",
+  "date": "2026-08-22",
+  "script": "robot/ring_test.py",
+  "question": "Is there a structural mode between the hub/IMU and the wheels?",
+  "verdict": "void",
+  "headline": "No verdict: phase A recorded a flat 0 deg/s, so nothing touched the robot. Needs a hands-on repeat.",
+  "series": [
+    [
+      "gyro_dps",
+      "gyro (deg/s)",
+      1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8460",
+    "samples: 1000"
+  ],
+  "segments": [
+    [
+      0,
+      2.5,
+      "passive / tap the hub"
+    ],
+    [
+      2.5,
+      5.0,
+      "wheels held, torque pulses"
+    ]
+  ]
+}

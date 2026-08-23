@@ -1,0 +1,31 @@
+{
+  "n": 7,
+  "title": "Filtering the speed term makes it worse",
+  "date": "2026-08-22",
+  "script": "robot/sweep_speed.py",
+  "question": "Does filtering the load-bearing speed term kill the ring?",
+  "verdict": "ruled-out",
+  "headline": "No. Raw is best at 2.86 deg RMS; 20 ms gives 4.89 and 40 ms gives 4.00. The ~10 Hz ring survives all three.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "speed_term_duty",
+      "speed term (duty %)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "SEGS = ((0.30, 0), (0.30, 20), (0.30, 40))",
+    "battery mV: 8427",
+    "fell_in_seg: None"
+  ],
+  "segment_labels": [
+    "raw",
+    "tau = 20 ms",
+    "tau = 40 ms"
+  ]
+}

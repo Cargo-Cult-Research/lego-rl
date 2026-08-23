@@ -1,7 +1,3 @@
-Searching for any hub with Pybricks service...
-battery mV: 8522
-gains: 10.71 0.8700001 0.43 0.3 fc: 10
-stopped, fell_at_ms: -1 steps: 1000 elapsed: 5000
 t_ms,pitch_x10,rate_dps,duty,wheel_deg
 1,0,0,0,0
 20,0,0,0,0
@@ -253,6 +249,3 @@ t_ms,pitch_x10,rate_dps,duty,wheel_deg
 4940,-19,-95,-90,114
 4960,-27,1,-10,113
 4980,-18,61,40,107
-END
-
-[exited with code 0]

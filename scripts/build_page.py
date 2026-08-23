@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
-"""Build the lego-rl page from the raw hub telemetry in data/.
+"""Build the lego-rl page from the run directories in data/.
 
-Writes a single self-contained HTML file (inline SVG, no assets) into the
+The middle of the page is a lab book that grows itself: every `data/run_NN_*/`
+directory becomes an entry, in order, with its own charts rendered from its
+telemetry. Adding a run is adding a directory — no edit to this file.
+
+See CLAUDE.md ("Recording a run") for the directory contract.
+
+    .venv/bin/python scripts/build_page.py [--out DIR]
+
+Writes one self-contained HTML file (inline SVG, no assets) into the
 strawrunway pages directory, which com.strawrunway.share serves privately at
 lego-rl.strawrunway.com and publicly at strawrunway.com/lego-rl while a share
 timer is live.
-
-    .venv/bin/python scripts/build_page.py [--out DIR]
 """
 from __future__ import annotations
 
 import argparse
+import html
+import json
 import math
 import re
 import sys
@@ -24,20 +32,61 @@ DATA = ROOT / "data"
 DEFAULT_OUT = Path.home() / "code/housekeeping/strawrunway/pages/lego-rl"
 
 GAINS = (10.71, 0.87, 0.43, 0.30)
+BAND_COLOURS = ["#9ec1de", "#a9d6a0", "#c3a6d8", "#d8c48a", "#e3a9a0"]
+VERDICTS = {
+    "guilty": ("guilty", "#e3a9a0"),
+    "ruled-out": ("ruled out", "#a9d6a0"),
+    "progress": ("progress", "#9ec1de"),
+    "void": ("no verdict", "#a8b0b8"),
+    "open": ("open", "#d8c48a"),
+}
 
 
-def read_csv(path: Path, ncol: int) -> list[list[int]]:
-    """Rows of the hub's CSV dump; ignores the surrounding chatter."""
-    pat = re.compile(r"^" + ",".join([r"(-?\d+)"] * ncol) + r"$")
-    rows = []
-    for line in path.read_text().splitlines():
-        m = pat.match(line.strip())
-        if m:
-            rows.append([int(x) for x in m.groups()])
-    return rows
+# --------------------------------------------------------------------------
+# data
 
 
-def dominant_hz(vals: list[float], dt: float, lo=2.0, hi=45.0) -> float:
+def read_run(d: Path) -> dict | None:
+    """One run directory -> {meta, notes, cols, rows}. None if unreadable."""
+    meta_p, csv_p = d / "meta.json", d / "telemetry.csv"
+    if not meta_p.exists() or not csv_p.exists():
+        return None
+    meta = json.loads(meta_p.read_text())
+    lines = csv_p.read_text().splitlines()
+    if not lines:
+        return None
+    cols = lines[0].split(",")
+    pat = re.compile(r"^" + ",".join([r"-?\d+"] * len(cols)) + r"$")
+    rows = [[int(x) for x in l.split(",")] for l in lines[1:] if pat.match(l.strip())]
+    notes_p = d / "notes.md"
+    return {
+        "dir": d.name,
+        "meta": meta,
+        "notes": notes_p.read_text() if notes_p.exists() else "",
+        "cols": cols,
+        "rows": rows,
+    }
+
+
+def load_runs() -> list[dict]:
+    runs = []
+    for d in sorted(DATA.glob("run_*")):
+        if not d.is_dir():
+            continue
+        r = read_run(d)
+        if r is None:
+            print(f"  skipping {d.name}: missing meta.json or telemetry.csv")
+            continue
+        runs.append(r)
+    runs.sort(key=lambda r: r["meta"].get("n", 0))
+    return runs
+
+
+# --------------------------------------------------------------------------
+# analysis
+
+
+def dominant_hz(vals, dt, lo=2.0, hi=45.0) -> float:
     n = len(vals)
     if n < 20:
         return 0.0
@@ -55,7 +104,7 @@ def dominant_hz(vals: list[float], dt: float, lo=2.0, hi=45.0) -> float:
     return bf
 
 
-def spectrum(vals: list[float], dt: float, lo=1.0, hi=40.0, step=0.4):
+def spectrum(vals, dt, lo=1.0, hi=40.0, step=0.4):
     n = len(vals)
     mean = sum(vals) / n
     v = [x - mean for x in vals]
@@ -69,114 +118,154 @@ def spectrum(vals: list[float], dt: float, lo=1.0, hi=40.0, step=0.4):
     return pts
 
 
+def md_to_html(text: str) -> str:
+    """Paragraphs, `code`, **bold**, *italic*. Deliberately tiny."""
+    out = []
+    for para in re.split(r"\n\s*\n", text.strip()):
+        p = html.escape(para.strip())
+        p = re.sub(r"`([^`]+)`", r"<code>\1</code>", p)
+        p = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", p)
+        p = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", p)
+        p = p.replace("\n", " ")
+        if p:
+            out.append(f"<p>{p}</p>")
+    return "\n".join(out)
+
+
+# --------------------------------------------------------------------------
+# rendering
+
+
+def run_bands(run: dict) -> list:
+    """Coloured time bands: explicit `segments`, or derived from a `seg` column."""
+    meta, cols, rows = run["meta"], run["cols"], run["rows"]
+    if meta.get("segments"):
+        return [(a, b, BAND_COLOURS[i % len(BAND_COLOURS)], lbl)
+                for i, (a, b, lbl) in enumerate(meta["segments"])]
+    labels = meta.get("segment_labels")
+    if not labels or "seg" not in cols:
+        return []
+    ti, si = cols.index("t_ms"), cols.index("seg")
+    bands, cur, start = [], None, 0.0
+    for r in rows:
+        if r[si] != cur:
+            if cur is not None and cur < len(labels):
+                bands.append((start, r[ti] / 1000,
+                              BAND_COLOURS[cur % len(BAND_COLOURS)], labels[cur]))
+            cur, start = r[si], r[ti] / 1000
+    if cur is not None and cur < len(labels):
+        bands.append((start, rows[-1][ti] / 1000,
+                      BAND_COLOURS[cur % len(BAND_COLOURS)], labels[cur]))
+    return bands
+
+
+def run_charts(run: dict) -> str:
+    meta, cols, rows = run["meta"], run["cols"], run["rows"]
+    if not rows:
+        return ""
+    ti = cols.index("t_ms")
+    t = [r[ti] / 1000 for r in rows]
+    series = []
+    for name, label, scale in meta.get("series", []):
+        if name not in cols:
+            continue
+        ci = cols.index(name)
+        series.append((label, list(zip(t, [r[ci] * scale for r in rows]))))
+    if not series:
+        return ""
+    out = [f'<figure>{line_chart(series, title=meta["title"], xlabel="time (s)", ylabel="", bands=run_bands(run), height=250)}'
+           f'<figcaption>{html.escape(meta.get("script", ""))} '
+           f'&middot; {len(rows)} samples at 50 Hz'
+           f'</figcaption></figure>']
+
+    for spec in meta.get("extra_charts", []):
+        if spec.startswith("spectrum:"):
+            _, col, scale = spec.split(":")
+            if col not in cols:
+                continue
+            ci = cols.index(col)
+            sub = [r for r in rows if r[ti] > 1300] or rows
+            out.append(
+                f'<figure>{line_chart([("pitch", spectrum([r[ci] * float(scale) for r in sub], 0.02))], title="Pitch spectrum — where the energy sits", xlabel="frequency (Hz)", ylabel="amplitude (deg)", height=200)}'
+                f'<figcaption>The robot\'s own pendulum mode is around 2 Hz, so '
+                f'almost none of this motion is the robot falling.</figcaption></figure>')
+        elif spec == "terms" and {"pitch_x10", "rate_dps", "wheel_deg"} <= set(cols):
+            ka, kr, km, _ = GAINS
+            pi_, ri, wi = (cols.index(c) for c in ("pitch_x10", "rate_dps", "wheel_deg"))
+            sub = [r for r in rows if r[ti] > 1300] or rows
+            n = len(sub)
+            out.append(
+                f'<figure>{bar_chart([("K_angle x pitch", round(sum(abs(ka * r[pi_] / 10) for r in sub) / n, 1)), ("K_rate x gyro", round(sum(abs(kr * r[ri]) for r in sub) / n, 1)), ("K_wheel x angle", round(sum(abs(km * r[wi]) for r in sub) / n, 1))], title="Mean |contribution| to commanded duty", xlabel="duty %  (the motor rail is 100)", colour=lambda l, v: "#e3a9a0" if v > 100 else "#9ec1de")}'
+                f'<figcaption>The rate term alone averages more than the motor '
+                f'can deliver.</figcaption></figure>')
+    return "\n".join(out)
+
+
+def run_entry(run: dict) -> str:
+    meta = run["meta"]
+    label, colour = VERDICTS.get(meta.get("verdict", "open"), VERDICTS["open"])
+    hub = "\n".join(html.escape(l) for l in meta.get("hub_output", []))
+    hub_block = (f'<details><summary>hub output</summary><pre><code>{hub}</code></pre></details>'
+                 if hub else "")
+    return f"""
+<article class="run" id="{html.escape(run['dir'])}">
+  <div class="runhead">
+    <span class="runno">run {meta.get('n', '?')}</span>
+    <span class="verdict" style="border-color:{colour};color:{colour}">{label}</span>
+    <span class="rundate">{html.escape(meta.get('date', ''))}</span>
+  </div>
+  <h3>{html.escape(meta['title'])}</h3>
+  <p class="question"><em>{html.escape(meta.get('question', ''))}</em></p>
+  <p class="headline">{html.escape(meta.get('headline', ''))}</p>
+  {md_to_html(run['notes'])}
+  {run_charts(run)}
+  {hub_block}
+</article>"""
+
+
+def summary_table(runs: list[dict]) -> str:
+    rows = []
+    for r in runs:
+        m = r["meta"]
+        label, colour = VERDICTS.get(m.get("verdict", "open"), VERDICTS["open"])
+        rows.append(
+            f'<tr><td class="num">{m.get("n","?")}</td>'
+            f'<td><a href="#{html.escape(r["dir"])}">{html.escape(m["title"])}</a></td>'
+            f'<td style="color:{colour}">{label}</td></tr>')
+    return ("<table class='summary'><tr><th>#</th><th>run</th><th>verdict</th></tr>"
+            + "".join(rows) + "</table>")
+
+
 def build(out_dir: Path) -> Path:
-    charts: dict[str, str] = {}
+    runs = load_runs()
+    print(f"  {len(runs)} runs")
+    by_n = {r["meta"].get("n"): r for r in runs}
 
-    # --- run 1: unfiltered, the original wild shake -----------------------
-    r1 = read_csv(DATA / "run1_unfiltered.log", 5)
-    t1 = [r[0] / 1000 for r in r1]
-    charts["run1"] = line_chart(
-        [("pitch (deg)", list(zip(t1, [r[1] / 10 for r in r1]))),
-         ("duty (%)", list(zip(t1, [r[3] for r in r1])))],
-        title="Run 1 — as shipped: raw gyro term, hard friction step",
-        xlabel="time (s)", ylabel="deg  /  % duty",
-        bands=[(0, 1.16, "#a9d6a0", "held by hand"),
-               (1.16, 5.0, "#e3a9a0", "released")],
-    )
-    charts["run1_zoom"] = line_chart(
-        [("pitch (deg)", list(zip(t1, [r[1] / 10 for r in r1]))),
-         ("duty (%)", list(zip(t1, [r[3] for r in r1])))],
-        title="Run 1, 700 ms zoom — duty is a square wave slamming rail to rail",
-        xlabel="time (s)", ylabel="deg  /  % duty", xlim=(1.25, 1.95),
-        hlines=[(100, "#e3a9a0", "3 3"), (-100, "#e3a9a0", "3 3")],
-        height=220,
-    )
-    osc1 = [r for r in r1 if r[0] > 1300]
-    charts["spec1"] = line_chart(
-        [("run 1 (raw gyro)", spectrum([r[1] / 10 for r in osc1], 0.02))],
-        title="Pitch spectrum after release — where the energy sits",
-        xlabel="frequency (Hz)", ylabel="amplitude (deg)", height=210,
-        legend=True,
-    )
+    stats = {"hz1": "?", "hz3": "?", "peak1": "?", "peak3": "?",
+             "cm1": "?", "cm3": "?", "nruns": len(runs)}
+    r1, r3 = by_n.get(1), by_n.get(3)
+    if r1 and r1["rows"]:
+        c, rows = r1["cols"], r1["rows"]
+        pi_, ri, wi, ti = (c.index(x) for x in ("pitch_x10", "rate_dps", "wheel_deg", "t_ms"))
+        osc = [r for r in rows if r[ti] > 1300]
+        stats["hz1"] = round(dominant_hz([r[pi_] / 10 for r in osc], 0.02), 1)
+        stats["peak1"] = max(abs(r[ri]) for r in osc)
+        stats["cm1"] = round(abs(rows[-1][wi] - rows[0][wi]) * math.pi / 180 * 3.75, 1)
+    if r3 and r3["rows"]:
+        c, rows = r3["cols"], r3["rows"]
+        pi_, ri, wi, ti = (c.index(x) for x in ("pitch_x10", "rate_dps", "wheel_deg", "t_ms"))
+        stats["hz3"] = round(dominant_hz([r[pi_] / 10 for r in rows if r[ti] > 1000], 0.02), 1)
+        stats["peak3"] = max(abs(r[ri]) for r in rows)
+        stats["cm3"] = round(abs(rows[-1][wi] - rows[0][wi]) * math.pi / 180 * 3.75, 1)
 
-    # --- run 3: filtered ---------------------------------------------------
-    r3 = read_csv(DATA / "run3_filtered.log", 5)
-    t3 = [r[0] / 1000 for r in r3]
-    charts["run3"] = line_chart(
-        [("pitch (deg)", list(zip(t3, [r[1] / 10 for r in r3]))),
-         ("duty (%)", list(zip(t3, [r[3] for r in r3])))],
-        title="Run 3 — 30 ms gyro low-pass + ramped friction term",
-        xlabel="time (s)", ylabel="deg  /  % duty",
+    html_out = PAGE.format(
+        labbook="\n".join(run_entry(r) for r in runs),
+        summary=summary_table(runs),
+        **stats,
     )
-    charts["drift"] = line_chart(
-        [("run 1 — as shipped", list(zip(t1, [r[4] for r in r1]))),
-         ("run 3 — filtered", list(zip(t3, [r[4] for r in r3])))],
-        title="Wheel travel: the position loop starts doing its job",
-        xlabel="time (s)", ylabel="wheel angle (deg)", height=210,
-    )
-
-    # --- term decomposition ------------------------------------------------
-    ka, kr, km, ks = GAINS
-    n = len(osc1)
-    charts["terms"] = bar_chart(
-        [("K_angle x pitch", round(sum(abs(ka * r[1] / 10) for r in osc1) / n, 1)),
-         ("K_rate x gyro", round(sum(abs(kr * r[2]) for r in osc1) / n, 1)),
-         ("K_wheel x angle", round(sum(abs(km * r[4]) for r in osc1) / n, 1))],
-        title="Mean |contribution| to commanded duty, run 1 after release",
-        xlabel="duty %  (the motor rail is 100)",
-        colour=lambda label, v: "#e3a9a0" if v > 100 else "#9ec1de",
-    )
-
-    # --- gain sweep --------------------------------------------------------
-    sweep = [("baseline 10.71/0.87", 7.4, 5.38, 40),
-             ("half gains 5.36/0.44", 9.8, 6.30, 3),
-             ("duty clamped to 40", 10.0, 4.66, 70),
-             ("soft angle 5.36/0.87", 5.8, 17.02, 70)]
-    charts["sweep_hz"] = bar_chart(
-        [(nme, hz) for nme, hz, _, _ in sweep],
-        title="Oscillation frequency barely moves across a 2x gain change",
-        xlabel="Hz", colour="#c3a6d8",
-    )
-    charts["sweep_sat"] = bar_chart(
-        [(nme, sat) for nme, _, _, sat in sweep],
-        title="...and it persists at 3% saturation, so it is not bang-bang",
-        xlabel="% of samples with duty on the rail",
-        colour=lambda label, v: "#a9d6a0" if v < 10 else "#9ec1de",
-    )
-
-    # --- run 5: the yaw loop, finally instrumented -------------------------
-    r5 = read_csv(DATA / "run5_sync.log", 6)
-    t5 = [r[0] / 1000 for r in r5]
-    charts["sync"] = line_chart(
-        [("pitch (deg)", list(zip(t5, [r[2] / 10 for r in r5]))),
-         ("left - right wheel (deg)", list(zip(t5, [r[5] for r in r5])))],
-        title="Turning the yaw loop off changes the pitch oscillation not at all",
-        xlabel="time (s)", ylabel="deg",
-        bands=[(0, 2.5, "#9ec1de", "K_SYNC 0.15"),
-               (2.5, 5.0, "#a9d6a0", "K_SYNC 0 (off)"),
-               (5.0, 7.5, "#c3a6d8", "K_SYNC 0.05")],
-        height=240,
-    )
-
-    stats = {
-        "hz1": round(dominant_hz([r[1] / 10 for r in osc1], 0.02), 1),
-        "hz3": round(dominant_hz([r[1] / 10 for r in r3 if r[0] > 1000], 0.02), 1),
-        "peak1": max(abs(r[2]) for r in osc1),
-        "peak3": max(abs(r[2]) for r in r3),
-        # Net travel, not peak excursion, and normalised per second because the
-        # runs are 5 s and 8 s. Wheel radius 37.5 mm.
-        "cm1": round(abs(r1[-1][4] - r1[0][4]) * math.pi / 180 * 3.75, 1),
-        "cm3": round(abs(r3[-1][4] - r3[0][4]) * math.pi / 180 * 3.75, 1),
-        "cms1": round(abs(r1[-1][4] - r1[0][4]) * math.pi / 180 * 3.75
-                      / (r1[-1][0] / 1000), 1),
-        "cms3": round(abs(r3[-1][4] - r3[0][4]) * math.pi / 180 * 3.75
-                      / (r3[-1][0] / 1000), 1),
-    }
-
-    html = PAGE.format(**charts, **stats)
     out_dir.mkdir(parents=True, exist_ok=True)
     dest = out_dir / "index.html"
-    dest.write_text(html)
+    dest.write_text(html_out)
     return dest
 
 
@@ -186,7 +275,7 @@ PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Teaching a LEGO set to stand up</title>
-<meta name="description" content="Sim-to-real RL on a LEGO 42124 inverted pendulum: what the first hardware runs actually measured.">
+<meta name="description" content="Sim-to-real RL on a LEGO 42124 inverted pendulum: a lab book of what the hardware runs actually measured.">
 <meta name="robots" content="noindex, nofollow">
 <style>
   :root {{
@@ -215,38 +304,57 @@ PAGE = """<!doctype html>
     margin: 2.4rem 0 .6rem; padding-bottom: .2rem;
     border-bottom: 1px solid var(--rule);
   }}
+  h3 {{ color: var(--bright); font-size: 1.04rem; font-weight: normal;
+       font-style: italic; margin: .3rem 0 .4rem; }}
   p {{ margin: .85rem 0; }}
   strong {{ color: var(--bright); font-weight: normal;
            border-bottom: 1px dotted var(--rule); }}
-  ul {{ margin: .85rem 0 .85rem 1.3rem; }}
-  li {{ margin: .3rem 0; }}
   code {{
     font-family: "SF Mono", "Menlo", "Consolas", monospace;
     font-size: .82em; background: var(--code-bg);
     padding: .1em .35em; border-radius: 3px; color: var(--bright);
   }}
+  pre {{ background: #363c42; border-left: 2px solid var(--rule);
+        padding: .7rem .9rem; margin: .8rem 0; border-radius: 3px;
+        overflow-x: auto; }}
+  pre code {{ background: none; padding: 0; font-size: .74rem; line-height: 1.5; }}
   figure {{
-    margin: 1.5rem 0; background: var(--code-bg);
+    margin: 1.3rem 0; background: var(--code-bg);
     border: 1px solid var(--rule); border-radius: 4px;
     padding: .7rem .6rem .3rem;
   }}
   figcaption {{
-    font-size: .82rem; color: var(--dim); font-style: italic;
+    font-size: .8rem; color: var(--dim); font-style: italic;
     padding: .1rem .4rem .5rem; line-height: 1.5;
   }}
-  table {{
-    border-collapse: collapse; width: 100%; margin: 1.2rem 0;
-    font-size: .88rem;
-  }}
-  th, td {{
-    text-align: left; padding: .35rem .6rem;
-    border-bottom: 1px solid var(--rule);
-  }}
+  table {{ border-collapse: collapse; width: 100%; margin: 1.2rem 0;
+          font-size: .88rem; }}
+  th, td {{ text-align: left; padding: .35rem .6rem;
+           border-bottom: 1px solid var(--rule); }}
   th {{ color: var(--bright); font-weight: normal; font-variant: small-caps;
        letter-spacing: .05em; }}
   td.num {{ font-family: "SF Mono", Menlo, monospace; font-size: .84em; }}
   .good {{ color: var(--good); }}
   .bad {{ color: var(--bad); }}
+  .summary td:first-child {{ width: 2em; color: var(--dim); }}
+  article.run {{
+    margin: 2rem 0; padding: 1rem 1.1rem .4rem;
+    background: rgba(0,0,0,.11); border: 1px solid var(--rule);
+    border-radius: 5px;
+  }}
+  .runhead {{ display: flex; gap: .6rem; align-items: center;
+             flex-wrap: wrap; margin-bottom: .1rem; }}
+  .runno {{ font-family: "SF Mono", Menlo, monospace; font-size: .74rem;
+           color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }}
+  .verdict {{ font-family: "SF Mono", Menlo, monospace; font-size: .68rem;
+             border: 1px solid; border-radius: 3px; padding: .05rem .4rem;
+             letter-spacing: .06em; text-transform: uppercase; }}
+  .rundate {{ font-size: .74rem; color: var(--dim); margin-left: auto; }}
+  .question {{ color: var(--dim); margin: .1rem 0 .5rem; }}
+  .headline {{ color: var(--bright); }}
+  details {{ margin: .8rem 0 .4rem; }}
+  summary {{ cursor: pointer; font-size: .8rem; color: var(--dim);
+            font-variant: small-caps; letter-spacing: .06em; }}
   footer {{
     margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     font-size: .85rem; color: var(--dim); text-align: center;
@@ -257,7 +365,7 @@ PAGE = """<!doctype html>
 
 <header>
   <h1>Teaching a LEGO set to stand up</h1>
-  <div class="sub">what the first hardware runs actually measured</div>
+  <div class="sub">a lab book, kept while the robot refuses to</div>
 </header>
 
 <p>A LEGO Technic 42124 hoverboard rebuilt as a two-wheeled inverted pendulum:
@@ -269,9 +377,10 @@ published four-gain controller for this class of robot. So the learned policy
 gets linearised at equilibrium and its Jacobian compared against those gains.
 Agreement validates the whole pipeline against a known answer.</p>
 
-<p>This page is the boring part that comes first: the robot does not balance
-yet, and the sensor logs explain why. Every number below came off the hub over
-Bluetooth at 200 Hz.</p>
+<p>The robot does not balance yet. What follows is every hardware run so far,
+in order, including the ones that produced nothing and the hypotheses that
+turned out to be wrong. Each entry is generated from its own telemetry —
+{nruns} runs, all captured off the hub over Bluetooth at 200 Hz.</p>
 
 <h2>The first surprise came before the hardware</h2>
 
@@ -289,134 +398,48 @@ falling time constant is about 70 ms. On hardware, the published gains fell in
 0.755 s — the simulator disagreed with the textbook answer before the hardware
 did, and the simulator was right.</p>
 
-<h2>Run 1: the tuned gains, and a robot having a seizure</h2>
+<h2>Why it shakes: the physics that makes this hard</h2>
 
-<p>The first second is calm because a hand is holding it. The moment the wheels
-are free to react against the body, it detonates.</p>
+<p>This robot is <strong>tiny and violently over-motored</strong>. Its
+rotational inertia about the axle is roughly 0.0009 kg&middot;m&sup2;, and two
+L motors deliver about 0.5 N&middot;m — enough to angularly accelerate the body
+at some 30,000&deg;/s&sup2;. Any step in commanded duty slams the chassis, the
+gyro reads a huge rate, and 19 ms later the controller answers with an equal
+step the other way. Everything below is a consequence of that.</p>
 
-<figure>{run1}
-<figcaption>Pitch and commanded duty, 200 Hz control loop logged at 50 Hz.
-Green band: held. Red band: released.</figcaption></figure>
+{summary}
 
-<figure>{run1_zoom}
-<figcaption>Zoomed to 700 ms. This is not a controller correcting a fall — it
-is a square wave, pinned to +/-100% duty, reversing every couple of
-samples.</figcaption></figure>
+<h2>Lab book</h2>
 
-<figure>{spec1}
-<figcaption>The energy is at {hz1} Hz. The robot's actual pendulum mode is
-around 2 Hz, so almost none of this motion is the robot falling.</figcaption>
-</figure>
+{labbook}
 
-<p>Decomposing the commanded duty into its three terms shows what is doing the
-shouting:</p>
-
-<figure>{terms}
-<figcaption>The rate term alone averages more than the motor can deliver. The
-gyro is driving the robot, not damping it.</figcaption></figure>
-
-<p>The mechanism is that this robot is <strong>tiny and violently
-over-motored</strong>. Its rotational inertia about the axle is roughly
-0.0009 kg&middot;m&sup2;, and two L motors can deliver about 0.5 N&middot;m —
-enough to angularly accelerate the body at some 30,000&deg;/s&sup2;. Any step
-in duty slams the chassis, the gyro reads a huge rate, and 19 ms later the
-controller answers with an equal step the other way.</p>
-
-<p>Two things were injecting those steps. The rate gain is a pure
-differentiator feeding a delayed loop. And the coulomb-friction compensation —
-a fixed +/-10% duty added in the direction of travel, straight from the
-reference design — is a hard 20-point discontinuity every time the command
-crosses zero. On a body this light that step alone is worth about 130&deg;/s
-of gyro reading within a single sample. It is a bang-bang oscillator by
-construction.</p>
-
-<h2>Run 3: filter the gyro, ramp the friction term</h2>
-
-<p>A 30 ms low-pass on the rate term (leaving the ~2 Hz pendulum dynamics it
-exists to damp), and the friction compensation ramped in linearly over
-&plusmn;4% duty instead of stepped:</p>
-
-<figure>{run3}
-<figcaption>Same gains, same robot, both discontinuities removed.</figcaption>
-</figure>
+<h2>Where it stands</h2>
 
 <table>
 <tr><th>&nbsp;</th><th>run 1 — as shipped</th><th>run 3 — filtered</th></tr>
 <tr><td>oscillation</td><td class="num">{hz1} Hz</td><td class="num">{hz3} Hz</td></tr>
 <tr><td>peak gyro</td><td class="num bad">{peak1} &deg;/s</td><td class="num">{peak3} &deg;/s</td></tr>
-<tr><td>net travel</td><td class="num bad">{cm1} cm ({cms1} cm/s)</td><td class="num good">{cm3} cm ({cms3} cm/s)</td></tr>
-<tr><td>outcome</td><td class="bad">fell over at 5 s</td><td class="good">survived the full 8 s</td></tr>
+<tr><td>net travel</td><td class="num bad">{cm1} cm</td><td class="num good">{cm3} cm</td></tr>
+<tr><td>outcome</td><td class="bad">fell over</td><td class="good">survived the full run</td></tr>
 </table>
 
-<p class="sub" style="font-size:.85rem">Run 1 was 5 s and run 3 was 8 s, so
-travel is given per second as well as in total.</p>
-
-<figure>{drift}
-<figcaption>The clearest sign of progress: run 1 drove itself off the desk,
-run 3 stayed within a couple of centimetres.</figcaption></figure>
-
-<p>Real improvement — and still a robot vibrating at &plusmn;12&deg;. Which
-raised the obvious question: is it still saturating its way into a limit
-cycle?</p>
-
-<h2>The sweep that killed my explanation</h2>
-
-<p>Every configuration change costs a human hold-and-release, so instead of
-guessing one at a time the hub now runs a sweep inside a single launch: four
-controller configurations, 2.5 s each, computing its own summary statistics on
-the fly.</p>
-
-<figure>{sweep_hz}
-<figcaption>Halving every gain moves the frequency by 2 Hz. A control-loop
-instability should shift much harder than that.</figcaption></figure>
-
-<figure>{sweep_sat}
-<figcaption>The decisive row is the green one: at half gains the duty is on the
-rail only 3% of the time, and the robot oscillates <em>anyway</em> — slightly
-worse, in fact.</figcaption></figure>
-
-<p>A saturation-driven limit cycle goes away when you stop saturating. This one
-does not, and its frequency is nearly independent of the gains. That points at
-something whose frequency is set by the hardware rather than the software:
-compliance somewhere between the hub — where the IMU lives — and the wheels,
-so that the gyro is partly measuring the hub twisting on its own mounting
-rather than the robot's true lean. Closing a loop around a sensor that is not
-rigidly attached to the thing being controlled is a classic way to build an
-oscillator, and no amount of gain tuning fixes it.</p>
-
-<h2>The second loop nobody was looking at</h2>
-
-<p>There is another feedback loop in this controller that none of the logs
-above could see. The two wheels are kept in step by
-<code>sync = 0.15 &times; (left angle &minus; right angle)</code> — a
-proportional-only yaw controller, no damping, same 19 ms delay, on a body with
-very little yaw inertia. Every run up to this point logged the <em>mean</em>
-wheel angle, which cancels that channel exactly. A loop can hide for a
-surprisingly long time behind an averaging operator.</p>
-
-<figure>{sync}
-<figcaption>Three 2.5 s segments, identical pitch gains, only the yaw gain
-changing. The wheel-difference channel is finally visible — and it wanders at
-about 2 Hz, nowhere near the shake.</figcaption></figure>
-
-<p>So the yaw loop is <strong>innocent</strong>. Switching it off entirely
-leaves the pitch oscillation at 10.6 Hz against 10.4 Hz with it weakly on. Two
-hypotheses tested, two hypotheses dead.</p>
-
-<p>What logging that channel did surface is that the control law contains a
-<em>second</em> raw differentiator, structurally identical to the gyro term
-already found guilty: <code>K_SPEED &times; motor.speed()</code>, a
-differentiated encoder feeding the same delayed loop, whose magnitude no run
-has ever recorded. That is the next measurement.</p>
+<p>The oscillation has now proved indifferent to gain magnitude, to a duty
+clamp, to the yaw loop, to the wheel-speed term and its filtering, and to the
+friction compensation's slope. What remains on the list is the gyro filter
+itself — the one parameter whose changes have visibly moved the frequency —
+and mechanical compliance between the hub, where the IMU lives, and the
+wheels. Closing a loop around a sensor that is not rigidly attached to the
+thing being controlled is a classic way to build an oscillator, and no amount
+of gain tuning fixes it.</p>
 
 <h2>What this is really about</h2>
 
 <p>None of this is what the project is for. It is a rehearsal — the same
 measure/model/train/deploy loop, run end to end on a robot cheap enough to
 drop, before the same pipeline points at a quadruped. The useful part is that
-the failures are all showing up in the right order: the simulator caught the
-textbook gains, the telemetry caught the discontinuities, and the sweep caught
-my own explanation being wrong.</p>
+the failures keep showing up in the right order: the simulator caught the
+textbook gains, the telemetry caught the discontinuities, and the sweeps have
+now caught three of my own explanations being wrong.</p>
 
 <footer>
 Two L motors, one Technic Hub, Pybricks 3.6.1 &middot; MuJoCo + PPO on an

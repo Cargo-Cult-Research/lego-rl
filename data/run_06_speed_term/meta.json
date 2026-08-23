@@ -1,0 +1,30 @@
+{
+  "n": 6,
+  "title": "The wheel-speed term: removing it drops the robot",
+  "date": "2026-08-22",
+  "script": "robot/sweep_speed.py",
+  "question": "Is K_SPEED x motor.speed() a second raw differentiator causing the ring?",
+  "verdict": "ruled-out",
+  "headline": "The opposite: it is load-bearing. K_SPEED = 0 and the robot falls in 2.5 s (pitch RMS 3.2 -> 11.7 deg, peak 42 deg).",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "speed_term_duty",
+      "speed term (duty %)",
+      1
+    ]
+  ],
+  "hub_output": [
+    "battery mV: 8436",
+    "fell_in_seg: 1"
+  ],
+  "segment_labels": [
+    "K_SPEED = 0.30 raw",
+    "K_SPEED = 0",
+    "filtered (never ran)"
+  ]
+}
