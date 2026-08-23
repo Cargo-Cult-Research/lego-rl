@@ -144,6 +144,20 @@ def build(out_dir: Path) -> Path:
         colour=lambda label, v: "#a9d6a0" if v < 10 else "#9ec1de",
     )
 
+    # --- run 5: the yaw loop, finally instrumented -------------------------
+    r5 = read_csv(DATA / "run5_sync.log", 6)
+    t5 = [r[0] / 1000 for r in r5]
+    charts["sync"] = line_chart(
+        [("pitch (deg)", list(zip(t5, [r[2] / 10 for r in r5]))),
+         ("left - right wheel (deg)", list(zip(t5, [r[5] for r in r5])))],
+        title="Turning the yaw loop off changes the pitch oscillation not at all",
+        xlabel="time (s)", ylabel="deg",
+        bands=[(0, 2.5, "#9ec1de", "K_SYNC 0.15"),
+               (2.5, 5.0, "#a9d6a0", "K_SYNC 0 (off)"),
+               (5.0, 7.5, "#c3a6d8", "K_SYNC 0.05")],
+        height=240,
+    )
+
     stats = {
         "hz1": round(dominant_hz([r[1] / 10 for r in osc1], 0.02), 1),
         "hz3": round(dominant_hz([r[1] / 10 for r in r3 if r[0] > 1000], 0.02), 1),
@@ -370,12 +384,30 @@ rather than the robot's true lean. Closing a loop around a sensor that is not
 rigidly attached to the thing being controlled is a classic way to build an
 oscillator, and no amount of gain tuning fixes it.</p>
 
-<p>There is also a second feedback loop in this controller that none of the
-logs above could see. The two wheels are kept in step by
+<h2>The second loop nobody was looking at</h2>
+
+<p>There is another feedback loop in this controller that none of the logs
+above could see. The two wheels are kept in step by
 <code>sync = 0.15 &times; (left angle &minus; right angle)</code> — a
 proportional-only yaw controller, no damping, same 19 ms delay, on a body with
-very little yaw inertia. Every run so far logged the <em>mean</em> wheel angle,
-which cancels that channel exactly. It is being measured next.</p>
+very little yaw inertia. Every run up to this point logged the <em>mean</em>
+wheel angle, which cancels that channel exactly. A loop can hide for a
+surprisingly long time behind an averaging operator.</p>
+
+<figure>{sync}
+<figcaption>Three 2.5 s segments, identical pitch gains, only the yaw gain
+changing. The wheel-difference channel is finally visible — and it wanders at
+about 2 Hz, nowhere near the shake.</figcaption></figure>
+
+<p>So the yaw loop is <strong>innocent</strong>. Switching it off entirely
+leaves the pitch oscillation at 10.6 Hz against 10.4 Hz with it weakly on. Two
+hypotheses tested, two hypotheses dead.</p>
+
+<p>What logging that channel did surface is that the control law contains a
+<em>second</em> raw differentiator, structurally identical to the gyro term
+already found guilty: <code>K_SPEED &times; motor.speed()</code>, a
+differentiated encoder feeding the same delayed loop, whose magnitude no run
+has ever recorded. That is the next measurement.</p>
 
 <h2>What this is really about</h2>
 

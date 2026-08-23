@@ -59,12 +59,19 @@ What has been ruled in and out so far:
 - **Ruled out**: saturation. At half gains the duty is on the rail only 3% of
   the time and it oscillates anyway, and the frequency barely moves across a
   2× gain change (`robot/sweep_gains.py`).
-- **Open**: mechanical compliance between the hub (where the IMU is) and the
-  wheels — feeding back a sensor that is not rigidly attached to the
-  controlled body (`robot/ring_test.py`), and the never-instrumented yaw loop
-  `sync = 0.15 × (left − right)`, which is proportional-only, undamped, and
-  invisible to every log that recorded the *mean* wheel angle
-  (`robot/sweep_sync.py`).
+- **Ruled out**: the yaw loop `sync = K_SYNC × (left − right)`, which is
+  proportional-only and undamped and had never been instrumented, because
+  every earlier log recorded the *mean* wheel angle and cancelled that channel
+  exactly. Setting `K_SYNC = 0` changes the pitch oscillation not at all
+  (10.6 Hz vs 10.4 Hz at 0.05), and the wheel-difference channel wanders at
+  2 Hz — nowhere near the shake (`robot/sweep_sync.py`).
+- **Open**: `K_SPEED × motor.speed()` — the second raw differentiator in the
+  control law, structurally identical to the gyro-rate term that was already
+  found guilty, feeding the same delayed loop, and never once logged
+  (`robot/sweep_speed.py`). And mechanical compliance between the hub (where
+  the IMU is) and the wheels: feeding back a sensor that is not rigidly
+  attached to the controlled body (`robot/ring_test.py`, needs a hands-on
+  run).
 
 ## What the verifier caught (2026-08-22)
 
