@@ -11,12 +11,19 @@ impressions. Classical baseline on the braced build: 1.50 deg pitch RMS,
 
 Two decisions worth knowing about:
 
-* **The gyro is fed RAW**, unlike the classical controller, which needs a 30 ms
-  low-pass to stay calm. The policy was trained on raw (if noisy) rate in a sim
-  that has no structural resonance, so filtering here would feed it an input
-  distribution it never saw. Faithful-to-training is the honest first test of
-  transfer. If it rings, that is a finding about the sim-to-real gap, not a
-  reason to have quietly pre-filtered it.
+* **The gyro is FILTERED at 30 ms**, and run 13 is why. Faithful-to-training
+  said feed it raw, since the policy learned on raw rate in a sim with no
+  structural resonance. That was the honest first test and it failed loudly:
+  at 200 Hz on raw gyro the policy clamps 47% of its steps and falls at 4.0 s,
+  because nothing in training ever taught it not to chase an 11 Hz mode. The
+  same policy with a 30 ms low-pass runs at 1.17 deg RMS with zero clamping --
+  6.3x quieter, and the best number this robot has produced. Batteries two
+  millivolts apart, so this is the resonance and not the volts.
+
+  This is a deviation from training conditions, deliberately, and the RIGHT
+  fix is to put the resonance in the simulator so the policy learns to reject
+  it. Until then the filter is a patch over a known sim-to-real gap, which is
+  a different thing from a solution.
 * **Duty is clamped to MAX_DUTY** anyway, as a safety rail. In sim this policy
   never commands more than 35.7% (mean 12.5%, p99 32.5%), so the clamp should
   never bind -- if the printout says it did, the robot found a state the sim
