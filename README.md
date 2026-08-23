@@ -15,7 +15,9 @@ training, export — against a known answer.
 
 ## Milestones
 
-- [ ] **M0** classical balancer on hardware (`robot/balance_classical.py`)
+- [x] **M0** classical balancer on hardware (`robot/balance_classical.py`) —
+      it stands indefinitely and holds station, with a residual ~10 Hz ring
+      (~2.2° pitch RMS) that is still unexplained
 - [x] **M1** sim credibility — with *measured* parameters the published
       reference gains fail here, and CEM in-sim retuning gives
       `(10.71, 0.87, 0.43, 0.30)`; see "What the verifier caught" below
@@ -44,47 +46,40 @@ uv venv --python 3.12 && uv pip install -e ".[dev]"
 
 ## Where it is right now (2026-08-22)
 
-M0 is not done. The robot survives a full 8 s without falling and holds
-station to within a couple of centimetres, but it does it while oscillating at
-~9 Hz — a limit cycle, not balance. Raw telemetry for every run is in `data/`
-and the analysis is in `scripts/build_page.py`.
+**It balances.** With the configuration in `robot/balance_classical.py` the
+robot stands indefinitely, holds station to within a couple of centimetres,
+and does not fall — while oscillating at ~10 Hz with a pitch RMS of about
+2.2° and peaks around 7°. Compare the first hardware run: 14 Hz, ±12°, duty
+pinned to the rail 58% of the time, and a fall into the furniture.
 
-What has been ruled in and out so far:
+Eleven hardware runs are recorded in `data/run_NN_*/`, each with its raw
+telemetry, the question it was meant to settle, and what it actually showed —
+including the null runs and the six hypotheses that turned out wrong. The
+write-up renders from those directories (`scripts/build_page.py`).
 
-- **Ruled in**: the two discontinuities in the shipped control law. A raw gyro
-  term feeding a 19 ms-delayed loop, and the reference design's fixed ±10%
-  coulomb-friction step at every zero crossing. Filtering the first (30 ms)
-  and ramping the second took the oscillation from 14 Hz to 9 Hz, peak gyro
-  from 404 to 210 °/s, and turned a runaway into a robot that stays put.
-- **Ruled out**: saturation. At half gains the duty is on the rail only 3% of
-  the time and it oscillates anyway, and the frequency barely moves across a
-  2× gain change (`robot/sweep_gains.py`).
-- **Ruled out**: the yaw loop `sync = K_SYNC × (left − right)`, which is
-  proportional-only and undamped and had never been instrumented, because
-  every earlier log recorded the *mean* wheel angle and cancelled that channel
-  exactly. Setting `K_SYNC = 0` changes the pitch oscillation not at all
-  (10.6 Hz vs 10.4 Hz at 0.05), and the wheel-difference channel wanders at
-  2 Hz — nowhere near the shake (`robot/sweep_sync.py`).
-- **Ruled out**: `K_SPEED × motor.speed()`, the other raw differentiator. It is
-  not a bug, it is load-bearing — set it to zero and the robot falls within
-  2.5 s (pitch RMS 3.2° → 11.7°, peak 42°). It is nonetheless the largest term
-  in the controller (mean 18.5, peak 94 duty% against a clamp of 40), so it
-  was tested filtered instead: 20 ms and 40 ms both make things *worse*
-  (RMS 2.86° raw vs 4.89° and 4.00°), which is what lag on a stabilising term
-  should do (`robot/sweep_speed.py`).
-- **Open**: the *slope* of the friction compensation. Ramping it removed the
-  discontinuity but not the steepness — at `FRICTION_COMP=10` over
-  `FC_RAMP=4` the small-signal slope is 1 + 10/4 = 3.5, so the loop has 3.5×
-  the gain for small commands, which is exactly the regime a limit cycle lives
-  in. High small-signal gain plus a fixed delay gives an oscillation whose
-  frequency is set by the delay and whose amplitude self-adjusts:
-  gain-insensitive and amplitude-stable, matching every run
-  (`robot/sweep_fc.py`). Also still open: mechanical compliance between the
-  hub (where the IMU is) and the wheels (`robot/ring_test.py`, needs a
-  hands-on run).
+What was found guilty and fixed:
 
-Best configuration measured so far — raw speed term, 30 ms gyro filter, yaw
-loop off, duty clamped to 40 — holds **2.86° pitch RMS, ±8.8° peak**.
+- **A raw gyro term feeding a 19 ms-delayed loop.** A 30 ms low-pass took the
+  oscillation from 14 Hz to 9 and the peak gyro from 404 to 210 °/s. Sweeping
+  the filter *down* is worse in both directions tested — 15 ms and raw both
+  fell over (runs 9, 10).
+- **The reference design's ±10% coulomb-friction compensation.** A 20-point
+  discontinuity at every zero crossing; on a body with ~0.0009 kg·m² of
+  inertia that step alone is worth ~130 °/s of gyro within one sample.
+  Ramping it helped; **removing it entirely halved the peak excursion**
+  (11.7° → 6.6°) with drift still ~1 cm (run 8).
+
+What was ruled out, each with the run that killed it: duty saturation (rings
+at 3% saturation), the yaw loop `K_SYNC` (switching it off changes nothing),
+the wheel-speed term (**load-bearing** — remove it and the robot falls in
+2.5 s), filtering that term (lag on a stabiliser costs exactly what it should),
+and the friction term's small-signal slope.
+
+The residual ~10 Hz ring is unexplained. An open-loop ring test found no
+structural resonance — three hub taps decay to nothing in ~400 ms with only
+12% of spectral mass in the 8–13 Hz band — but that test was run with the
+robot held in the air, so the tyre-against-ground compliance that is actually
+inside the control loop was never excited. That is the next measurement.
 
 ## What the verifier caught (2026-08-22)
 
