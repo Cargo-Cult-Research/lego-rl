@@ -52,10 +52,14 @@ X_LIMIT = 0.5          # m; also the termination bound
 class BalancerEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, task="balance", randomize=True, max_seconds=None):
+    def __init__(self, task="balance", randomize=True, max_seconds=None,
+                 param_override=None):
         assert task in ("balance", "swingup")
         self.task = task
         self.randomize = randomize
+        # Applied AFTER randomization, so a calibration sweep can pin one
+        # parameter while everything else still varies.
+        self.param_override = dict(param_override or {})
         self.dr = DomainRandomization()
         self._max_seconds = max_seconds if max_seconds is not None else (
             10.0 if task == "balance" else 20.0)
@@ -75,6 +79,14 @@ class BalancerEnv(gym.Env):
         for name in ("slide_x", "slide_z", "pitch", "wheel"):
             j = self.model.joint(name)
             self._adr[name] = (int(j.qposadr[0]), int(j.dofadr[0]))
+        # Present only when hub_resonance_hz > 0. When it is, the IMU rides the
+        # hub, so what the policy SEES is chassis + flex while what the reward
+        # and the fall check use is the chassis alone.
+        try:
+            j = self.model.joint("hub_flex")
+            self._adr["hub_flex"] = (int(j.qposadr[0]), int(j.dofadr[0]))
+        except KeyError:
+            self._adr.pop("hub_flex", None)
         self.steps_per_ctrl = max(1, round(1.0 / (p.control_hz * p.physics_dt)))
         self.max_steps = int(self._max_seconds * p.control_hz)
 
@@ -83,6 +95,9 @@ class BalancerEnv(gym.Env):
         p = nominal_params()
         if self.randomize:
             p = self.dr.sample(p, self.np_random)
+        if self.param_override:
+            from dataclasses import replace as _replace
+            p = _replace(p, **self.param_override)
         self._rebuild(p)
         pitch_adr = self._adr["pitch"][0]
         if self.task == "balance":
@@ -143,9 +158,20 @@ class BalancerEnv(gym.Env):
         wa, wd = self._adr["wheel"]
         return np.array([qp[pa], qv[pd], qp[wa], qv[wd]])
 
+    def _imu_state(self):
+        """What the gyro actually measures: the HUB's absolute angle and rate,
+        which is the chassis plus whatever the mount is doing. Identical to the
+        true state when the model is rigid."""
+        s = self._true_state().copy()
+        adr = self._adr.get("hub_flex")
+        if adr is not None:
+            s[0] += float(self.data.qpos[adr[0]])
+            s[1] += float(self.data.qvel[adr[1]])
+        return s
+
     def _obs(self):
         p = self.p
-        s = self._true_state()
+        s = self._imu_state()
         meas = s + np.array([
             math.radians(p.imu_angle_bias)
             + self.np_random.normal(0.0, math.radians(p.imu_angle_noise)),

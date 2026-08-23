@@ -35,6 +35,17 @@ class PhysicalParams:
     imu_angle_noise: float = 0.05      # deg, per-sample std
     imu_rate_noise: float = 0.2        # deg/s, per-sample std
     delay_ctrl_steps: int = 4          # ticks; measured 15-19 ms cmd->motion (incl. stiction)
+    # --- hub mount compliance: the reason M0 took eleven runs ---
+    # The IMU sits in the hub, and the hub is attached to the chassis through
+    # LEGO pins that flex. So the gyro measures the hub twisting on its mount,
+    # not the robot's true lean, and a loop closed around it oscillates however
+    # it is tuned. Measured on hardware: bracing the structure cut the ring 81%
+    # AND RAISED its frequency 10.6 -> 11.5 Hz. Adding mass lowers a resonance;
+    # it rose, so stiffness grew faster than mass. That is the signature.
+    # Set hub_resonance_hz = 0 to get the old rigid model back.
+    hub_resonance_hz: float = 11.5     # Hz, measured 2026-08-22 (braced build)
+    hub_damping_ratio: float = 0.08    # GUESS; the ring persists, so lightly damped
+    hub_mass_frac: float = 0.40        # GUESS; fraction of body_mass in the hub
     # --- loop / sim ---
     control_hz: float = 200.0          # DT=5 ms in the Pybricks loop
     physics_dt: float = 0.001
@@ -57,6 +68,9 @@ PROVENANCE = {
     "imu_rate_noise": MEASURED,   # sysid_imu 2026-08-22: bias -0.03, drift ~1 deg/30 s
     "delay_ctrl_steps": MEASURED, # sysid_latency 2026-08-22: loop jitter <=1 ms, act 15-19 ms
     "ground_friction": GUESS,
+    "hub_resonance_hz": MEASURED,   # run 12: braced 11.5 Hz, unbraced 10.6
+    "hub_damping_ratio": GUESS,     # ring persists in closed loop -> lightly damped
+    "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
     "control_hz": MEASURED,       # we set it
 }
 
@@ -87,6 +101,13 @@ class DomainRandomization:
     imu_angle_noise: tuple = (0.02, 0.10)   # deg
     imu_rate_noise: tuple = (0.05, 0.50)    # deg/s
     delay_ctrl_steps: tuple = (2, 6)        # ticks, i.e. 10-30 ms around measured ~19
+    # Only the frequency is measured, and only on one build -- unbraced was
+    # 10.6 Hz, braced 11.5, and a rebuild could land anywhere nearby. Damping
+    # and mass split are guesses. So randomize widely: a policy that only works
+    # at exactly 11.5 Hz has learned the wrong thing.
+    hub_resonance_hz: tuple = (8.0, 16.0)
+    hub_damping_ratio: tuple = (0.03, 0.20)
+    hub_mass_frac: tuple = (0.25, 0.55)
 
     def sample(self, p: PhysicalParams, rng) -> PhysicalParams:
         u = lambda r: float(rng.uniform(r[0], r[1]))
@@ -105,6 +126,9 @@ class DomainRandomization:
             imu_rate_bias=u(self.imu_rate_bias),
             imu_angle_noise=u(self.imu_angle_noise),
             imu_rate_noise=u(self.imu_rate_noise),
+            hub_resonance_hz=u(self.hub_resonance_hz),
+            hub_damping_ratio=u(self.hub_damping_ratio),
+            hub_mass_frac=u(self.hub_mass_frac),
             delay_ctrl_steps=int(rng.integers(self.delay_ctrl_steps[0],
                                               self.delay_ctrl_steps[1] + 1)),
         )
