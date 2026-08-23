@@ -1,0 +1,41 @@
+{
+  "n": 12,
+  "title": "Bracing the structure: the ring was mechanical after all",
+  "date": "2026-08-22",
+  "script": "robot/benchmark.py",
+  "question": "Does stiffening the LEGO structure change the ~10 Hz ring?",
+  "verdict": "guilty",
+  "headline": "Yes, decisively. Ring amplitude 1.75 deg -> 0.34 (81% down) and its frequency ROSE from 10.6 to 11.5 Hz. Adding 19 g of mass alone would lower a resonance; it rose, so stiffness grew faster than mass. That is a mechanical mode, and no controller setting ever moved it.",
+  "series": [
+    [
+      "pitch_x10",
+      "pitch (deg)",
+      0.1
+    ],
+    [
+      "duty",
+      "duty (%)",
+      1.0
+    ]
+  ],
+  "hub_output": [
+    "try 1: rc=1 TimeoutError",
+    "try 2: rc=1 TimeoutError",
+    "try 3: rc=1 TimeoutError",
+    "try 4: rc=1 TimeoutError",
+    "try 5: rc=1 TimeoutError",
+    "try 6: rc=1 TimeoutError",
+    "try 7: rc=1 TimeoutError",
+    "try 8: rc=1 TimeoutError",
+    "try 9: rc=1 TimeoutError",
+    "try 10: rc=1 TimeoutError",
+    "try 11: rc=1 TimeoutError",
+    "try 12: rc=1 TimeoutError",
+    "try 13: rc=1 TimeoutError",
+    "battery mV: 8340",
+    "gains: 10.71 0.8700001 0.43 0.3 tau: 30 max: 40",
+    "fell_at_ms: -1 elapsed: 10000 steps: 2000",
+    "rate: 200 Hz (want ~200)",
+    "pitch_rms_x100: 283 peak_x10: 57"
+  ]
+}

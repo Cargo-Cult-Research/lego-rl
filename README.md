@@ -16,8 +16,8 @@ training, export — against a known answer.
 ## Milestones
 
 - [x] **M0** classical balancer on hardware (`robot/balance_classical.py`) —
-      it stands indefinitely and holds station, with a residual ~10 Hz ring
-      (~2.2° pitch RMS) that is still unexplained
+      stands indefinitely at 1.50° pitch RMS / 3.6° peak; the residual ring was
+      traced to mechanical compliance and largely fixed by bracing
 - [x] **M1** sim credibility — with *measured* parameters the published
       reference gains fail here, and CEM in-sim retuning gives
       `(10.71, 0.87, 0.43, 0.30)`; see "What the verifier caught" below
@@ -47,12 +47,12 @@ uv venv --python 3.12 && uv pip install -e ".[dev]"
 ## Where it is right now (2026-08-22)
 
 **It balances.** With the configuration in `robot/balance_classical.py` the
-robot stands indefinitely, holds station to within a couple of centimetres,
-and does not fall — while oscillating at ~10 Hz with a pitch RMS of about
-2.2° and peaks around 7°. Compare the first hardware run: 14 Hz, ±12°, duty
-pinned to the rail 58% of the time, and a fall into the furniture.
+robot stands indefinitely and holds station to within a couple of centimetres,
+at **1.50° pitch RMS and 3.6° peak** over a 10 s window. The first hardware
+run was 14 Hz at ±12°, duty pinned to the rail 58% of the time, and a fall
+into the furniture.
 
-Eleven hardware runs are recorded in `data/run_NN_*/`, each with its raw
+Twelve hardware runs are recorded in `data/run_NN_*/`, each with its raw
 telemetry, the question it was meant to settle, and what it actually showed —
 including the null runs and the six hypotheses that turned out wrong. The
 write-up renders from those directories (`scripts/build_page.py`).
@@ -75,11 +75,16 @@ the wheel-speed term (**load-bearing** — remove it and the robot falls in
 2.5 s), filtering that term (lag on a stabiliser costs exactly what it should),
 and the friction term's small-signal slope.
 
-The residual ~10 Hz ring is unexplained. An open-loop ring test found no
-structural resonance — three hub taps decay to nothing in ~400 ms with only
-12% of spectral mass in the 8–13 Hz band — but that test was run with the
-robot held in the air, so the tyre-against-ground compliance that is actually
-inside the control loop was never excited. That is the next measurement.
+And then the part software could not fix. **The residual ring was
+mechanical, and the robot's own hardware proved it.**
+Bracing the structure (410 g → 429 g, run 12) cut the ring amplitude 81%,
+1.75° → 0.34°, and **raised its frequency** from 10.6 to 11.5 Hz. Adding mass
+alone lowers a resonance (ω ∝ √(k/m)); it rose, so stiffness grew faster than
+mass — the signature of stiffening a compliant structure, and something no
+control parameter ever did across eleven runs. The IMU sits on the hub, so the
+loop was closed around a sensor that was not rigidly attached to the body being
+controlled. Unfixable in software, which is exactly why six software hypotheses
+died in a row and the residual outlived all of them.
 
 ## What the verifier caught (2026-08-22)
 
@@ -114,7 +119,7 @@ answer *before* the hardware did, and was right.
 
 | param | how to measure | status |
 |---|---|---|
-| wheel_radius, masses, com_height | calipers, kitchen scale, balance on a straightedge | measured (75 mm, 410 g, 50 mm) |
+| wheel_radius, masses, com_height | calipers, kitchen scale, balance on a straightedge | measured (75 mm, 429 g braced, 50 mm) |
 | no_load_speed, motor_friction_duty | `robot/sysid_motor.py` (wheels up) | measured (1632 dps @ 8.37 V, 10% dead zone) |
 | delay_ctrl_steps | `robot/sysid_latency.py` | measured (15–19 ms) |
 | imu rate noise | `robot/sysid_imu.py` | measured (0.25 dps) |

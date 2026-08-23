@@ -429,14 +429,25 @@ step the other way. Everything below is a consequence of that.</p>
 <tr><td>outcome</td><td class="bad">fell over</td><td class="good">survived the full run</td></tr>
 </table>
 
-<p>The oscillation has now proved indifferent to gain magnitude, to a duty
-clamp, to the yaw loop, to the wheel-speed term and its filtering, and to the
-friction compensation's slope. What remains on the list is the gyro filter
-itself — the one parameter whose changes have visibly moved the frequency —
-and mechanical compliance between the hub, where the IMU lives, and the
-wheels. Closing a loop around a sensor that is not rigidly attached to the
-thing being controlled is a classic way to build an oscillator, and no amount
-of gain tuning fixes it.</p>
+<p>And after bracing the structure (run 12): <strong>1.50&deg; pitch RMS,
+3.6&deg; peak</strong> over ten seconds, with the ring down to 0.34&deg;.</p>
+
+<p>The oscillation proved indifferent to gain magnitude, to a duty clamp, to
+the yaw loop, to the wheel-speed term and its filtering, to the friction
+compensation's slope, and to the gyro filter. Six software hypotheses, six
+funerals — and then the build changed, and the answer arrived from the
+hardware.</p>
+
+<p>Bracing the structure cut the ring 81% and <strong>raised its
+frequency</strong>, 10.6 to 11.5 Hz. That direction is the whole proof: adding
+19 g of mass to an oscillator lowers its frequency, since &omega; scales as
+&radic;(k/m). It rose, so stiffness grew faster than mass — which is what
+bracing a compliant structure does, and what no control parameter had managed
+in either direction across eleven runs. The IMU lives on the hub, so the loop
+was closed around a sensor that was not rigidly attached to the body being
+controlled. That is a classic way to build an oscillator, it cannot be tuned
+away, and it explains why six software explanations died in a row while the
+residual outlived every one of them.</p>
 
 <h2>What this is really about</h2>
 
