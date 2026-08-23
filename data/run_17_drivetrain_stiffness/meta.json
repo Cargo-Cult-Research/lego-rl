@@ -1,0 +1,21 @@
+{
+  "n": 17,
+  "title": "The ~11 Hz mystery, measured with an encoder and two hands",
+  "date": "2026-08-23",
+  "script": "robot/sysid_backlash_many.py",
+  "question": "Is the slop in the drivetrain a backlash gap or a spring — and does either explain the ~11 Hz ring?",
+  "verdict": "guilty",
+  "headline": "A spring, decisively (linear fit residual 0.45 against 6.80 for a constant), stiffness 2.90 N*m/rad. Against the robot's inertia reflected at the wheel that predicts a 10.7 Hz mode, against 10.6 Hz observed unbraced and 11.5 braced — from an encoder and a pair of hands, with no reference to any gyro signal.",
+  "series": [["play_deg", "encoder sweep (deg)", 1], ["duty_pct", "duty (%)", 1]],
+  "hub_output": [
+    "100 randomized trials, both wheels held, portA 59 / portB 41",
+    "duty band   n   min   p10  median  p90  max",
+    "15-22      19     0   0.0     1.0   2.0    2",
+    "23-29      18     0   0.0     1.0   3.0    4",
+    "30-36      15     1   1.0     2.0   4.0    4",
+    "37-43      27     1   2.0     3.0   5.0    6",
+    "44-50      21     2   3.0     4.0   5.0    6",
+    "p10 slope 0.1123 deg per duty%, deflection starts at 22% duty",
+    "stiffness 1.45 N*m/rad per motor, 2.90 both -> mode 10.7 Hz"
+  ]
+}

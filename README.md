@@ -82,68 +82,38 @@ the wheel-speed term (**load-bearing** — remove it and the robot falls in
 2.5 s), filtering that term (lag on a stabiliser costs exactly what it should),
 and the friction term's small-signal slope.
 
-And then the part software could not fix. **The residual ring was
-mechanical, and the robot's own hardware proved it.**
-Bracing the structure (410 g → 429 g, run 12) cut the ring amplitude 81%,
-1.75° → 0.34°, and **raised its frequency** from 10.6 to 11.5 Hz. Adding mass
-alone lowers a resonance (ω ∝ √(k/m)); it rose, so stiffness grew faster than
-mass — the signature of stiffening a compliant structure, and something no
-control parameter ever did across eleven runs. The IMU sits on the hub, so the
-loop was closed around a sensor that was not rigidly attached to the body being
-controlled. Unfixable in software, which is exactly why six software hypotheses
-died in a row and the residual outlived all of them.
+And then the part software could not fix, which took two attempts to identify.
 
-## The verifier's verdict (2026-08-22)
+**The residual ring is drivetrain compliance, and it was measured, not
+inferred.** Hold a wheel so it cannot turn and sweep its motor to the stops:
+the encoder is on the motor side of the gearbox, so the angle it sweeps is the
+slop. 100 randomized trials (run 17) say it is a **spring**, not a backlash gap
+— a linear fit leaves residual 0.45 against 6.80 for a constant. Stiffness
+**2.90 N·m/rad**, which against the robot's inertia reflected at the wheel
+predicts a mode at **10.7 Hz**, against **10.6 Hz observed unbraced** and
+11.5 braced. An encoder and a pair of hands landed on the frequency that
+survived six software hypotheses, with no reference to any gyro signal.
 
-The point of the project. A policy trained by PPO on a MuJoCo model built from
-kitchen-scale measurements, linearised at the upright equilibrium, against the
-four-gain controller CEM found by direct search in the same sim — two methods
-that share a plant and nothing else:
+It also explains the bracing result that started this: bracing stiffens the
+frame the **motors** sit in, raising `k` and raising the frequency, which is the
+direction the hardware actually moved.
 
-| state | learned | sim-tuned | ratio |
-|---|---|---|---|
-| pitch | 7.057 | 10.710 | 0.66 |
-| pitch rate | 0.563 | 0.870 | 0.65 |
-| wheel | 0.148 | 0.430 | 0.35 |
-| wheel rate | 0.186 | 0.300 | 0.62 |
+An earlier story — flex in the hub's IMU mount — was *inferred* from the same
+closed-loop frequency and is now believed wrong. It never explained the bracing
+direction without strain, and its amplitude provably cancels with mass
+(`θ ≈ α/ω²`), leaving frequency as its only free parameter. The lesson is in
+`params.py` as a provenance category: `INFERRED` is not `MEASURED`, and an
+inferred number deserves a wide randomization range, not a model built on top
+of it.
 
-Signs all agree, and three gains sit at a near-identical 0.62–0.66. A *uniform*
-scale factor is not a pipeline fault: CEM maximised survival time alone while
-PPO pays a quadratic cost on lean, drift and effort, so the two optimise
-different objectives on the same plant and land on differently-scaled versions
-of the same law. Normalising both by their own pitch gain isolates the
-structure:
+Two things surfaced that nobody was looking for. **Nothing deflects until ~22%
+duty** — the motor dead zone is 10%, so another ~12% goes to static friction in
+the gearbox, meaning the robot at its usual ~12% mean duty runs
+*stiction-locked and effectively rigid*. And **the two motors differ nearly 2×**
+in compliance.
 
-| state | learned/pitch | tuned/pitch | ratio |
-|---|---|---|---|
-| pitch rate | 0.0798 | 0.0812 | **0.98** |
-| wheel rate | 0.0264 | 0.0280 | **0.94** |
-| wheel | 0.0210 | 0.0401 | 0.52 |
-
-Two of three within 6%. The residual is wheel position, 2× low, which is the
-same axis the reward weights directly — a remaining objective difference rather
-than a discovered bug, and left alone rather than tuned away.
-
-### Two bugs this caught, one of them mine
-
-The verifier's first run had a wheel-position gain **33× below** the classical
-controller. The cause was in the reward, not the training: lateral position was
-weighted at 0.1 on raw metres, making a 5 cm drift 111× cheaper than a 5° lean,
-with position only mattering at half a metre. A policy cannot learn feedback it
-is never rewarded for. Predicted from reading the code before the run that
-confirmed it.
-
-The first fix was worse. Raising the weight to 10 without bounding it let the
-penalty reach 40 against an alive bonus of 1, so *falling over early scored
-better than staying up* — and the agent learned exactly that (episode length
-2000 → 674, return +1990 → −890). Both reward terms are now normalised by their
-own termination limit with weights summing to 0.95, so a degree of lean and a
-centimetre of drift cost the same and survival always dominates.
-
-| | survival | full episodes | peak drift | ends at |
-|---|---|---|---|---|
-| before | 9.40 s | 63% | 40.3 cm | 40.3 cm |
-| after | 10.00 s | 100% | 7.1 cm | 3.0 cm |
+Current: **1.50° pitch RMS, 3.6° peak over 10 s** with the classical
+controller; **1.17°** with the learned policy.
 
 ## The policy on the robot (M5)
 

@@ -44,11 +44,45 @@ class PhysicalParams:
     # being taken up the encoder reports rotation the WHEEL is not doing. The
     # controller's wheel-angle and wheel-speed terms are therefore reading a
     # signal that is partly fiction, twice per oscillation.
-    # DEFAULT OFF: the mechanism is right but the implementation is not yet
-    # credible -- 0.1 deg and 2.0 deg produce identical trajectories, so the
-    # lash joint is currently acting as a free joint rather than a deadband.
-    # See the status note in model.py.
+    # RETIRED: measured 2026-08-23 and it is NOT backlash. A fixed gap reads
+    # the same angle at every torque; this grew with duty (0.5 deg at 20%,
+    # 2.0 at 30%, 3.25 at 45%), which is a spring being wound up, not a gap
+    # being crossed. Kept at 0; drivetrain_stiffness below replaces it.
     motor_backlash_deg: float = 0.0    # half-width of the deadband at the wheel
+    # Drivetrain compliance, MEASURED 2026-08-23 (robot/sysid_backlash.py):
+    # hold a wheel, sweep the motor to both stops, read the encoder.
+    #
+    # 100 randomized trials (sysid_backlash_many.py), analysed on the p10 of
+    # each duty band because slip can only ADD angle -- one-sided contamination,
+    # so the lower tail is the clean estimate. Stiffness comes from the SLOPE
+    # (0.112 deg per duty%), which is immune to however much duty is eaten
+    # before anything deflects.
+    #
+    # It is a SPRING, decisively: linear fit residual 0.45 against 6.80 for a
+    # constant. A backlash gap would read the same angle at every torque.
+    #
+    # This is very likely the ~11 Hz that eleven runs chased. Against the
+    # robot's inertia reflected at the wheel (M*r^2 + wheel inertia = 6.4e-4)
+    # it predicts 11.5 Hz, against 10.6 observed unbraced and 11.5 braced. It
+    # also explains what mount flex could not: bracing stiffens the frame the
+    # MOTORS sit in, raising k and raising the frequency, which is the
+    # direction actually observed.
+    #
+    # Caveats. stall_torque is still a GUESS and frequency goes as its square
+    # root (0.18 -> 9.1 Hz, 0.35 -> 12.6). Turned around, the frequency match
+    # is weak evidence that stall_torque is near 0.22-0.28. And the two motors
+    # measured nearly 2x apart (portA 3.86, portB 2.20 both-equivalent), which
+    # may be unit variation or may be two hands gripping differently.
+    #
+    # SEPARATE FINDING, and it matters for the controller: nothing deflects
+    # until ~22% duty. The motor dead zone is 10%, so ~12% more is absorbed by
+    # static friction inside the gearbox. The robot balances at ~12% mean duty,
+    # which means it normally sits STICTION-LOCKED and effectively rigid -- the
+    # compliance only wakes up on large swings. That is plausibly why the real
+    # robot tolerates a resonance the sim could not.
+    drivetrain_stiction_duty: float = 0.22   # duty below which nothing winds up
+    drivetrain_stiffness: float = 2.90  # N*m/rad, both motors in parallel
+    drivetrain_damping_ratio: float = 0.10   # GUESS
     lash_damping: float = 2e-5         # N*m*s/rad inside the deadband; small, and
                                        # only there to stop free-flight chatter
     rotor_inertia_frac: float = 0.30   # motor-side inertia as a fraction of the
@@ -113,8 +147,10 @@ PROVENANCE = {
     "hub_damping_ratio": GUESS,     # ring persists in closed loop -> lightly damped
     "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
     "hub_imu_coupling": GUESS,      # calibrated, not measured -- see model.py
-    "motor_backlash_deg": GUESS,    # "a few degrees" by hand; measure it by
-                                    # holding a wheel and rocking the other
+    "motor_backlash_deg": GUESS,    # retired: measured and it is not backlash
+    "drivetrain_stiffness": MEASURED,   # sysid_backlash.py 2026-08-23
+    "drivetrain_damping_ratio": GUESS,
+    "drivetrain_stiction_duty": MEASURED,   # 100 trials 2026-08-23
     "lash_damping": GUESS,
     "rotor_inertia_frac": GUESS,
     "control_hz": MEASURED,       # we set it
@@ -161,6 +197,11 @@ class DomainRandomization:
     # the deadband is validated. Pinned at zero until then; training against an
     # unvalidated nonlinearity is worse than not modelling it.
     motor_backlash_deg: tuple = (0.0, 0.0)
+    # Wide, because slip biases the measurement low and stall_torque is a
+    # guess whose sqrt scales the resulting frequency. This spans roughly
+    # 8-16 Hz of drivetrain mode.
+    drivetrain_stiffness: tuple = (1.5, 5.8)
+    drivetrain_damping_ratio: tuple = (0.03, 0.30)
     rotor_inertia_frac: tuple = (0.10, 0.60)
 
     def sample(self, p: PhysicalParams, rng) -> PhysicalParams:
@@ -186,6 +227,8 @@ class DomainRandomization:
             hub_imu_coupling=u(self.hub_imu_coupling),
             motor_backlash_deg=u(self.motor_backlash_deg),
             rotor_inertia_frac=u(self.rotor_inertia_frac),
+            drivetrain_stiffness=u(self.drivetrain_stiffness),
+            drivetrain_damping_ratio=u(self.drivetrain_damping_ratio),
             delay_ctrl_steps=int(rng.integers(self.delay_ctrl_steps[0],
                                               self.delay_ctrl_steps[1] + 1)),
         )

@@ -15,8 +15,21 @@ the two things it could be:
 Both would feel like "slop" in the hand. They need different models and they
 behave differently in a control loop, so measure rather than assume.
 
-LED: GREEN = grip the LEFT wheel  ·  CYAN = grip the RIGHT wheel
-     BLUE flashes between reps    ·  RED at the end
+Which wheel is which: "left" and "right" here are just names for Port A and
+Port B. Their DIRECTIONS were verified during bringup; which physical side
+each sits on never was. So the script does not tell you -- it SHOWS you, by
+wiggling the wheel under test before each phase. Grab the one that moves.
+
+The operator cannot see this terminal, and colour-coded LEDs turned out to be
+one thing too many to remember. So the signal vocabulary is three states and
+the wheel itself does the talking:
+
+    a wheel WIGGLES ......... that is the one to hold. Grab it now.
+    LED DARK ................ get your grip, no rush
+    LED ON (steady) ......... measuring. Hold it still until the light goes out.
+    LED DARK again .......... let go, switch to the other wheel
+
+Timings are deliberately slow. A rushed grip is a wasted run.
 """
 from pybricks.hubs import TechnicHub
 from pybricks.parameters import Axis, Color, Direction, Port
@@ -27,13 +40,20 @@ hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
 left = Motor(Port.A, Direction.COUNTERCLOCKWISE)
 right = Motor(Port.B, Direction.CLOCKWISE)
 
-DUTIES = (15, 25, 40)     # %, well above the ~10% dead zone
-REPS = 3
-PUSH_MS = 600             # long enough to settle against the stop
+DUTIES = (20, 30, 45)     # %, clear of the measured ~10% dead zone. 15% was
+                          # too close to it -- the motor can stall short of the
+                          # stop and report a small angle that looks like play.
+MAX_PLAUSIBLE = 40        # deg. Beyond this the wheel turned instead of the
+                          # gearbox taking up its play, so the number is not a
+                          # measurement of anything. A first run reported
+                          # 88-243 deg because the wheels were not held.
+REPS = 2                  # keep the hold under ~15 s; gripping is tiring
+PUSH_MS = 500             # long enough to settle against the stop
 SETTLE_MS = 250
 
+held_fail = 0
 print("battery mV:", hub.battery.voltage())
-print("motor,duty_pct,rep,play_deg")
+print("motor,duty_pct,rep,play_deg,status")
 
 
 def play_at(motor, duty):
@@ -55,21 +75,45 @@ def play_at(motor, duty):
     return a - b
 
 
-for name, motor, colour in (("left ", left, Color.GREEN),
-                            ("right", right, Color.CYAN)):
-    hub.light.on(Color.RED)
-    wait(2500)              # time to move your hand to the other wheel
-    hub.light.on(colour)
-    wait(1500)
+for name, motor, colour in (("portA", left, Color.GREEN),
+                            ("portB", right, Color.CYAN)):
+    # Identify the wheel physically rather than naming a side we never verified.
+    print("--- WIGGLING", name, ": hold THAT wheel ---")
+    hub.light.off()
+    for _ in range(6):
+        motor.dc(45)
+        wait(150)
+        motor.dc(-45)
+        wait(150)
+    motor.dc(0)
+    print("    grip it now -- measuring starts in 6 s")
+    wait(6000)              # unhurried: a rushed grip is a wasted run
+    hub.light.on(colour)    # steady light = hold still
+    print("    MEASURING", name, "- keep holding until the light goes out")
+    wait(700)
     for duty in DUTIES:
         for rep in range(REPS):
             p = play_at(motor, duty)
-            print(name, ",", duty, ",", rep, ",", int(10 * p) / 10.0)
-            hub.light.on(Color.BLUE)
-            wait(150)
-            hub.light.on(colour)
+            bad = 1 if abs(p) > MAX_PLAUSIBLE else 0
+            print(name, ",", duty, ",", rep, ",", int(10 * p) / 10.0,
+                  ", HELD" if not bad else ", WHEEL_TURNED")
+            if bad:
+                held_fail += 1
+            # no flashing between reps: the light stays ON for the whole hold
+
+    motor.dc(0)
+    hub.light.off()
+    print("    done with", name, "- you can let go")
+    wait(4000)
 
 left.dc(0)
 right.dc(0)
 hub.light.on(Color.RED)
+if held_fail:
+    print("INVALID:", held_fail, "of", 2 * len(DUTIES) * REPS,
+          "reps had the wheel turn instead of hitting a stop.")
+    print("The gearbox play is whatever the motor sweeps while the wheel CANNOT")
+    print("move, so a spinning wheel measures nothing. Grip harder and repeat.")
+else:
+    print("all reps hit a stop -- numbers are usable")
 print("END")

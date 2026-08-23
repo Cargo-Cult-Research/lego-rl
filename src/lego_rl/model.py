@@ -111,33 +111,34 @@ def build_mjcf(p: PhysicalParams) -> str:
         chassis_mass = p.body_mass
         hub_xml = ""
 
-    # Gearbox backlash: the actuator and encoder live on the `wheel` joint
-    # (the motor side), and the tyre hangs off it through a `lash` hinge that
-    # is FREE within +-backlash and only transmits torque at its limits. So
-    # while the play is being taken up the encoder turns and the tyre does not,
-    # which is exactly what the hardware does.
-    if p.motor_backlash_deg and p.motor_backlash_deg > 1e-6:
-        # The motor side needs its own inertia, and it must be PHYSICAL: a
-        # geared rotor's reflected inertia scales with the square of the ratio
-        # and is comparable to the load it drives. Too small and motor torque
-        # crosses the deadband in microseconds, which is both wrong and stiff
-        # to integrate.
+    # Drivetrain compliance, MEASURED (robot/sysid_backlash.py 2026-08-23).
+    # The actuator and encoder live on the motor-side `wheel` joint and the
+    # tyre hangs off it through a `lash` hinge that is a SPRING, so the encoder
+    # leads the wheel under load. Was first modelled as a backlash deadband;
+    # measurement said otherwise -- the angle grew with torque (0.5 deg at 20%
+    # duty, 2.0 at 30%, 3.25 at 45%), which is a spring winding up rather than
+    # a gap being crossed.
+    if p.drivetrain_stiffness and p.drivetrain_stiffness > 0:
         wheel_i = 0.5 * p.wheel_mass * p.wheel_radius ** 2
         rotor_i = p.rotor_inertia_frac * wheel_i
+        # damp against the inertia this spring actually drives: the robot's
+        # mass reflected at the wheel, not the wheel alone
+        i_eff = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
+        c = 2.0 * p.drivetrain_damping_ratio * math.sqrt(
+            p.drivetrain_stiffness * i_eff)
         rotor_inertial = (f'\n        <inertial pos="0 0 0" mass="1e-3" '
                           f'diaginertia="{rotor_i} {rotor_i} {rotor_i}"/>')
         lash_open = f"""
         <body name="tyre" pos="0 0 0">
           <joint name="lash" type="hinge" axis="0 1 0"
-                 range="-{p.motor_backlash_deg} {p.motor_backlash_deg}"
-                 limited="true" damping="{p.lash_damping}"
-                 solreflimit="0.002 1" solimplimit="0.95 0.99 0.001"/>"""
+                 stiffness="{p.drivetrain_stiffness:.6g}" damping="{c:.6g}"/>"""
         lash_close = """
         </body>"""
     else:
         # No <inertial> override here: the wheel geom must supply the mass.
         rotor_inertial = ""
         lash_open = lash_close = ""
+
     return f"""
 <mujoco model="lego_balancer">
   <option timestep="{p.physics_dt}" integrator="implicitfast"/>
