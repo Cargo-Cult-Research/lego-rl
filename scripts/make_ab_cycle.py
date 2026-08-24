@@ -51,11 +51,21 @@ FALL_DEG = 45
 
 SEG_MS = 6000        # per condition
 SETTLE_MS = 1200     # discarded at the start of each segment
-CYCLES = 10          # 10 x 2 conditions x 6 s = about 2 minutes
+CYCLES = 7           # 7 x 3 conditions x 6 s = about 2 minutes
 
-# kind: 0 = classical (filtered), 1 = learned policy (filtered)
-KINDS = (0, 1)
-COLORS = (Color.GREEN, Color.CYAN)
+# kind: 0 = classical gains computed directly
+#       1 = the SAME law cast into the net and quantised (pipeline control)
+#       2 = the learned policy
+#
+# Condition 1 is the point. Every previous hardware comparison confounded "the
+# learned policy is worse" with "the export/fixed-point/hub pipeline degrades
+# whatever passes through it". A network that IS the classical controller
+# travels the identical pipeline while implementing a law already measured at
+# 1.5-3.3 deg RMS, so 0 vs 1 isolates the pipeline and 1 vs 2 isolates the
+# policy. In sim they are indistinguishable (10.00s/100% both, 0.88 vs 0.69
+# deg RMS); this asks the same question on hardware.
+KINDS = (0, 1, 2)
+COLORS = (Color.GREEN, Color.YELLOW, Color.CYAN)
 ALPHA = DT / (RATE_TAU_MS + DT)
 DEG2RAD = 0.0174532925
 
@@ -114,6 +124,9 @@ for cyc in range(CYCLES):
             if kind == 0:
                 duty = (K_ANGLE * pitch + K_RATE * rate_f
                         + K_MOTOR * angle + K_SPEED * speed)
+            elif kind == 1:
+                duty = act_lin([pitch * DEG2RAD, rate_f * DEG2RAD,
+                                angle * DEG2RAD, speed * DEG2RAD]) * 100
             else:
                 duty = act([pitch * DEG2RAD, rate_f * DEG2RAD,
                             angle * DEG2RAD, speed * DEG2RAD]) * 100
@@ -160,12 +173,21 @@ print("END")
 
 
 def main() -> None:
-    pol = (ROOT / "robot" / "policy_fast.py").read_text()
-    pol = re.sub(r'^""".*?"""\n', "", pol, count=1, flags=re.S)
+    def grab(name, fn):
+        src = re.sub(r'^""".*?"""\n', "", (ROOT / "robot" / name).read_text(),
+                     count=1, flags=re.S)
+        # both modules define act(); rename one so they can coexist
+        src = src.replace("def act(", f"def {fn}(")
+        src = src.replace("LUT_act", "LUT_" + fn)
+        return src
+
+    learned = grab("policy_fast.py", "act")
+    linear = grab("policy_linear_fast.py", "act_lin")
     out = ROOT / "robot" / "_ab_cycle.py"
     out.write_text(HEADER
-                   + "\n# ---- inlined robot/policy_fast.py (Q12, ~1.6 ms) ----\n"
-                   + pol + "# ---- end policy ----\n" + BODY)
+                   + "\n# ---- learned policy (Q12) ----\n" + learned
+                   + "\n# ---- the classical law cast into the same net (Q12) ----\n"
+                   + linear + "# ---- end policies ----\n" + BODY)
     print(f"wrote {out} ({out.stat().st_size} bytes)")
 
 
