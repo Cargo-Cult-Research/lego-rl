@@ -210,4 +210,18 @@ class BalancerEnv(gym.Env):
             0.0,
             0.0,
         ])
+        # ENCODER QUANTISATION. Pybricks hands back integer degrees and integer
+        # deg/s; the sim had infinite resolution, and that is not a rounding
+        # detail here. The quantum is the same size as the backlash gap, so the
+        # two interact: while the gap is being crossed the encoder reports
+        # rotation the wheel is not doing, and the SPEED term differentiates
+        # it. A 2 deg gap crossed in ~20 ms reads as 100 deg/s of motion that
+        # never happened, which K_SPEED=0.30 turns into 30% of commanded duty,
+        # twice per limit cycle. Without this the sim cannot show the rattle.
+        q = math.radians(p.encoder_quantum_deg)
+        qv = math.radians(p.encoder_speed_quantum_dps)
+        if q > 0:
+            meas[2] = round(meas[2] / q) * q
+        if qv > 0:
+            meas[3] = round(meas[3] / qv) * qv
         return OBS_SCALE * meas

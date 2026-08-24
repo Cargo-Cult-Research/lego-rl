@@ -184,28 +184,124 @@ def test_drivetrain_windup_matches_measured_stiffness():
         f"{math.degrees(expected):.2f} deg for tau/k")
 
 
-def test_drivetrain_mode_lands_where_measured():
-    """The motor-side inertia is what sets the mode, and getting it wrong put
-    three earlier models at 76 Hz instead of the measured 11."""
-    import math
+def test_wheel_never_collides_with_the_chassis():
+    """The bug that made backlash look unsimulable, as a regression test.
+
+    MuJoCo filters contacts between a body and its PARENT only. With no lash
+    joint the wheel geom sits on `wheels`, a direct child of `chassis`, so the
+    pair is filtered. Adding the lash joint moves the geom onto `tyre`, a
+    GRANDCHILD, which is not filtered -- and the wheel cylinder overlaps the
+    body box, so the wheel jams inside the robot at 32.5 mm penetration and
+    never comes out. Every deadband width then behaves identically, which is
+    exactly what was observed and wrongly read as "the deadband does not
+    engage". Open loop it cost a factor of 365 in wheel speed.
+    """
+    from dataclasses import replace
+
     import mujoco
+
     from lego_rl.model import build_mjcf
     from lego_rl.params import nominal_params
 
+    for half in (0.0, 0.5, 1.0, 2.5):
+        p = replace(nominal_params(), motor_backlash_deg=half)
+        m = mujoco.MjModel.from_xml_string(build_mjcf(p))
+        d = mujoco.MjData(m)
+        # lifted well clear of the floor: any contact at all is self-collision
+        d.qpos[int(m.joint("slide_z").qposadr[0])] = 0.5
+        mujoco.mj_forward(m, d)
+        assert d.ncon == 0, (
+            f"backlash={half}: {d.ncon} self-collisions while airborne; the "
+            "wheel is jammed inside the chassis")
+
+
+def test_deadband_engages_in_proportion_to_its_width():
+    """The test the old model.py docstring asked for and never got.
+
+    It was written off with "0.1 deg and 2.0 deg of play give identical
+    closed-loop results". Two things were wrong: the self-collision above, and
+    MuJoCo's default solreflimit of 0.02 s, at which the limit is so soft that
+    a 0.1 deg gap lets the encoder lead the tyre by 0.6 deg -- six times the
+    gap. A gap that does not scale is not a gap.
+    """
     from dataclasses import replace
-    p = replace(nominal_params(), drivetrain_stiffness=2.90)   # default is off
-    m = mujoco.MjModel.from_xml_string(build_mjcf(p))
-    k = float(m.joint("lash").stiffness[0])
-    wheel_i = 0.5 * p.wheel_mass * p.wheel_radius ** 2
-    i_load = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
-    i_rotor = p.motor_inertia_mult * i_load
-    f = math.sqrt(k * (1 / i_rotor + 1 / i_load)) / (2 * math.pi)
-    assert 9.0 < f < 13.0, f"drivetrain mode at {f:.1f} Hz, measured 10.6-11.5"
-    # ... and the price of landing there: a motor side heavy enough to give
-    # this mode cannot accelerate the robot. Documented so the tradeoff is not
-    # rediscovered as a mystery. See the note in model.py.
-    tau = p.stall_torque * p.n_motors * (p.battery_v / p.v_nominal)
-    accel = tau / (i_rotor + i_load)
-    assert accel < 150, ("if this ever passes comfortably, the mode/drive "
-                         "tradeoff has been resolved and compliance can be "
-                         "turned back on")
+
+    import mujoco
+    import numpy as np
+
+    from lego_rl.model import build_mjcf
+    from lego_rl.params import nominal_params
+
+    # The torque must exceed the stiction breakaway (0.22 duty ~ 0.124 N*m) or
+    # the gap correctly refuses to open at all -- that is the whole point of
+    # modelling stiction, and it is why the robot tolerates the play it has.
+    for half in (0.1, 0.25, 0.5, 1.0, 2.0):
+        p = replace(nominal_params(), motor_backlash_deg=half)
+        m = mujoco.MjModel.from_xml_string(build_mjcf(p))
+        d = mujoco.MjData(m)
+        d.qpos[int(m.joint("slide_z").qposadr[0])] = 0.5   # isolate the drivetrain
+        d.ctrl[0] = 0.30
+        for _ in range(40):
+            mujoco.mj_step(m, d)
+        lead = -np.degrees(d.qpos[int(m.joint("lash").qposadr[0])])
+        assert 0.9 < lead / half < 1.15, (
+            f"half-width {half} deg produced {lead:.3f} deg of encoder lead "
+            f"(ratio {lead / half:.2f}); the deadband is not engaging as a gap")
+
+
+def test_drivetrain_transmits_torque_with_backlash():
+    """A gap changes WHEN torque arrives, never how much of it arrives.
+
+    With the self-collision present this failed by a factor of 365, which is
+    what made the sim unable to stand and produced the false conclusion that
+    the measured play had to be removed from the model rather than fixed in it.
+    """
+    from dataclasses import replace
+
+    import mujoco
+    import numpy as np
+
+    from lego_rl.model import build_mjcf
+    from lego_rl.params import nominal_params
+
+    speeds = []
+    for half in (0.0, 1.0):
+        p = replace(nominal_params(), motor_backlash_deg=half)
+        m = mujoco.MjModel.from_xml_string(build_mjcf(p))
+        d = mujoco.MjData(m)
+        d.qpos[int(m.joint("slide_z").qposadr[0])] = 0.5
+        d.ctrl[0] = 0.05
+        for _ in range(200):
+            mujoco.mj_step(m, d)
+        speeds.append(abs(float(np.degrees(d.qvel[int(m.joint("wheel").dofadr[0])]))))
+    rigid, gapped = speeds
+    assert gapped > 0.9 * rigid, (
+        f"rigid reaches {rigid:.0f} deg/s but the gapped drivetrain only "
+        f"{gapped:.0f} deg/s -- torque is being eaten, not merely delayed")
+
+
+def test_robot_stands_with_the_slop_it_actually_has():
+    """Urs can feel the play by hand and the robot balances anyway, so any
+    model in which measured slop prevents balancing is a broken model."""
+    import numpy as np
+
+    from lego_rl.classical import ClassicalController, pybricks_to_si
+    from lego_rl.env import BalancerEnv
+
+    gains = pybricks_to_si(np.array([10.71, 0.87, 0.43, 0.30]))
+    for half in (0.0, 1.0, 2.5):
+        env = BalancerEnv(task="balance", randomize=False, max_seconds=6.0,
+                          param_override={"motor_backlash_deg": half})
+        ctrl = ClassicalController(gains_si=gains, friction_comp=0.0)
+        for ep in range(3):
+            obs, _ = env.reset(seed=1000 + ep)
+            n = 0
+            while True:
+                obs, _, term, trunc, _ = env.step(
+                    ctrl.act(obs, battery_v=env.p.battery_v))
+                n += 1
+                if term or trunc:
+                    break
+            assert n / env.p.control_hz >= 6.0 - 1e-6, (
+                f"fell after {n / env.p.control_hz:.2f}s with {half} deg of "
+                "backlash; the hardware does not")

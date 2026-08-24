@@ -44,11 +44,29 @@ class PhysicalParams:
     # being taken up the encoder reports rotation the WHEEL is not doing. The
     # controller's wheel-angle and wheel-speed terms are therefore reading a
     # signal that is partly fiction, twice per oscillation.
-    # RETIRED: measured 2026-08-23 and it is NOT backlash. A fixed gap reads
-    # the same angle at every torque; this grew with duty (0.5 deg at 20%,
-    # 2.0 at 30%, 3.25 at 45%), which is a spring being wound up, not a gap
-    # being crossed. Kept at 0; drivetrain_stiffness below replaces it.
-    motor_backlash_deg: float = 0.0    # half-width of the deadband at the wheel
+    # UN-RETIRED 2026-08-24. It was retired on the strength of a probe that
+    # cannot support the conclusion:
+    #
+    #   * the entire signal is 0-6 deg at 1 deg encoder quantisation, so the
+    #     "decisive" gap-vs-spring fit ran through five integers;
+    #   * the probe reads the angle AFTER dc(0) and a 120 ms settle, by which
+    #     time a wound-up spring has partly relaxed. What is left is the gap
+    #     plus however much wind-up stiction holds -- and the held fraction
+    #     grows with duty, which manufactures the rising line that was read as
+    #     proof of a spring;
+    #   * fitting gap + spring gives a NEGATIVE intercept (-2.46 deg), which is
+    #     not a gap at all but the ~22% stiction delaying the onset.
+    #
+    # Against that, Urs can feel distinct play by hand and reports no
+    # perceptible spring between the motors and the body. A hand resolves
+    # backlash better than a 1 deg encoder does. The sim previously could not
+    # stand with 2 deg of play -- but the robot does, so the sim was wrong; see
+    # the solreflimit note in model.py for what was actually broken.
+    motor_backlash_deg: float = 1.0    # half-width of the deadband at the wheel
+    # Contact time constant for the deadband's end stops. NOT a free knob: at
+    # MuJoCo's 0.02 s default the stop is so soft that the gap width stops
+    # mattering, which is exactly how the deadband got wrongly written off.
+    backlash_solref_s: float = 0.001
     # Drivetrain compliance, MEASURED 2026-08-23 (robot/sysid_backlash.py):
     # hold a wheel, sweep the motor to both stops, read the encoder.
     #
@@ -106,8 +124,24 @@ class PhysicalParams:
     #     0.02       76.3           10       11.2
     #     1.00       15.1           30       10.9
     #     3.00       12.3        anchored    10.7
-    motor_inertia_mult: float = 10.0   # x robot inertia reflected at the wheel
+    #
+    # REVISED 2026-08-24, downward and hard. The 10x above was inferred to make
+    # a SPRING resonate at the measured 11 Hz, and that claim was withdrawn --
+    # it also made the robot undriveable (80 rad/s^2, duty saturated for 1.4 s).
+    # With a deadband instead of a spring there is no reason for it to be
+    # large, and armature adds directly to the drive inertia: 10x means 11x
+    # less wheel acceleration, which a robot that visibly balances does not
+    # have. Modest default, wide randomization, driveability asserted in tests.
+    motor_inertia_mult: float = 0.3    # x robot inertia reflected at the wheel
     # --- sensing / timing ---
+    # Pybricks reports motor.angle() and motor.speed() as INTEGER degrees, and
+    # the sim had infinite encoder resolution, which mattered far more than it
+    # looks. The quantum is the same size as the backlash gap, and the speed
+    # term differentiates it: crossing a 2 deg gap in ~20 ms reads as 100 deg/s
+    # from a wheel that has not moved, and K_SPEED=0.30 turns that into 30% of
+    # duty built on fiction, twice per limit cycle.
+    encoder_quantum_deg: float = 1.0        # MEASURED: integer degrees
+    encoder_speed_quantum_dps: float = 1.0  # MEASURED: integer deg/s
     imu_angle_bias: float = 0.0        # deg, offset on integrated pitch
     imu_rate_bias: float = 0.0         # deg/s, gyro bias
     imu_angle_noise: float = 0.05      # deg, per-sample std
@@ -165,7 +199,10 @@ PROVENANCE = {
     "hub_damping_ratio": GUESS,     # ring persists in closed loop -> lightly damped
     "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
     "hub_imu_coupling": GUESS,      # calibrated, not measured -- see model.py
-    "motor_backlash_deg": GUESS,    # retired: measured and it is not backlash
+    "motor_backlash_deg": MEASURED,  # by hand; the 1 deg encoder cannot see it
+    "backlash_solref_s": GUESS,     # solver contact stiffness, randomized
+    "encoder_quantum_deg": MEASURED,        # Pybricks returns integer deg
+    "encoder_speed_quantum_dps": MEASURED,  # Pybricks returns integer deg/s
     "drivetrain_stiffness": MEASURED,   # 2.90 N*m/rad, sysid_backlash_many.py
                                         # 2026-08-23. The NUMBER is measured;
                                         # its role in the 11 Hz ring is not.
@@ -218,17 +255,23 @@ class DomainRandomization:
     hub_damping_ratio: tuple = (0.02, 0.40)
     hub_mass_frac: tuple = (0.15, 0.60)
     hub_imu_coupling: tuple = (0.0, 0.50)
-    # Felt by hand as "a few degrees" -- span from almost none to a lot ONCE
-    # the deadband is validated. Pinned at zero until then; training against an
-    # unvalidated nonlinearity is worse than not modelling it.
-    motor_backlash_deg: tuple = (0.0, 0.0)
+    # LIVE as of 2026-08-24, and deliberately WIDE. The gap is the one bit of
+    # drivetrain nonlinearity that is directly perceptible by hand, so it earns
+    # a default; but the 1 deg encoder cannot pin its width, so the honest
+    # response is to randomize hard over the whole plausible span rather than
+    # pretend to a number. 0.3-2.5 deg half-width = 0.6-5.0 deg of total play.
+    motor_backlash_deg: tuple = (0.3, 2.5)
+    # How hard the teeth are when they meet. Also randomized: this is the
+    # parameter whose default MuJoCo gets wrong for gearboxes, and a policy
+    # that only works at one contact stiffness has overfit to the solver.
+    backlash_solref_s: tuple = (0.0005, 0.004)
     # Wide, because slip biases the measurement low and stall_torque is a
     # guess whose sqrt scales the resulting frequency. This spans roughly
     # 8-16 Hz of drivetrain mode.
     drivetrain_stiffness: tuple = (0.0, 0.0)   # pinned; see hub_resonance_hz
     drivetrain_damping_ratio: tuple = (0.03, 0.30)
     drivetrain_stiction_duty: tuple = (0.12, 0.30)
-    motor_inertia_mult: tuple = (4.0, 40.0)   # 10-12 Hz across this range
+    motor_inertia_mult: tuple = (0.05, 1.5)   # see the note on the default
 
     def sample(self, p: PhysicalParams, rng) -> PhysicalParams:
         u = lambda r: float(rng.uniform(r[0], r[1]))
@@ -252,6 +295,7 @@ class DomainRandomization:
             hub_mass_frac=u(self.hub_mass_frac),
             hub_imu_coupling=u(self.hub_imu_coupling),
             motor_backlash_deg=u(self.motor_backlash_deg),
+            backlash_solref_s=u(self.backlash_solref_s),
             motor_inertia_mult=u(self.motor_inertia_mult),
             drivetrain_stiffness=u(self.drivetrain_stiffness),
             drivetrain_damping_ratio=u(self.drivetrain_damping_ratio),

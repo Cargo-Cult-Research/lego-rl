@@ -142,33 +142,78 @@ def build_mjcf(p: PhysicalParams) -> str:
     # measurement said otherwise -- the angle grew with torque (0.5 deg at 20%
     # duty, 2.0 at 30%, 3.25 at 45%), which is a spring winding up rather than
     # a gap being crossed.
-    if p.drivetrain_stiffness and p.drivetrain_stiffness > 0:
-        wheel_i = 0.5 * p.wheel_mass * p.wheel_radius ** 2
-        i_load = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
-        rotor_i = p.motor_inertia_mult * i_load
-        # damp against the inertia this spring actually drives: the robot's
-        # mass reflected at the wheel, not the wheel alone
-        i_eff = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
-        c = 2.0 * p.drivetrain_damping_ratio * math.sqrt(
-            p.drivetrain_stiffness * i_eff)
-        rotor_inertial = (f'\n        <inertial pos="0 0 0" mass="1e-3" '
-                          f'diaginertia="{rotor_i} {rotor_i} {rotor_i}"/>')
-        # STICTION, and it is the reason the real robot tolerates a resonance
-        # that a bare spring destroys in simulation. Run 17 measured that
-        # nothing deflects below ~22% duty; the robot balances at ~12% mean
-        # duty, so the drivetrain is frictionally LOCKED in normal operation
-        # and only goes compliant on large swings. MuJoCo's frictionloss is
-        # exactly this: a torque that must be exceeded before the joint moves.
+    wheel_i = 0.5 * p.wheel_mass * p.wheel_radius ** 2
+    i_load = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
+
+    # Reflected rotor inertia goes on the joint as ARMATURE, not as an
+    # <inertial> override on the body. A geared motor reflects its rotor as
+    # N^2*J, which is a joint-space inertia and nothing else -- that is exactly
+    # what armature is. It also makes the massless-wheel bug above structurally
+    # impossible, because the wheel geom's mass is never displaced.
+    armature = p.motor_inertia_mult * i_load
+
+    has_lash = ((p.motor_backlash_deg and p.motor_backlash_deg > 0)
+                or (p.drivetrain_stiffness and p.drivetrain_stiffness > 0))
+    if has_lash:
+        # STICTION. Run 17 measured that nothing deflects below ~22% duty while
+        # the robot balances at ~12% mean duty, so the drivetrain sits
+        # frictionally LOCKED in normal operation and only frees up on large
+        # swings. MuJoCo frictionloss is exactly this: a torque that must be
+        # exceeded before the joint moves at all. It is also what keeps a
+        # deadband from rattling continuously.
         stick = (p.drivetrain_stiction_duty * p.stall_torque
                  * (p.battery_v / p.v_nominal) * p.n_motors)
+        attrs = [f'damping="{p.lash_damping:.6g}"',
+                 f'frictionloss="{stick:.6g}"']
+        if p.motor_backlash_deg and p.motor_backlash_deg > 0:
+            # THE GAP. Free travel within +-half, hard stops at the ends.
+            #
+            # solreflimit is load-bearing and its default is wrong for this. At
+            # MuJoCo's default 0.02 s the limit is so soft that a 0.1 deg
+            # deadband lets the encoder lead the tyre by 0.6 deg -- six times
+            # the gap -- which is why an earlier sweep of the play changed
+            # nothing and the deadband was wrongly written off as unmodellable.
+            # It was not modelling a gap, it was modelling mush. At 1 ms the
+            # measured lead/half-width is 1.11, 1.07, 1.02 over 0.1-1.0 deg.
+            h = p.motor_backlash_deg
+            attrs += [f'range="{-h:.6g} {h:.6g}"', 'limited="true"',
+                      f'solreflimit="{p.backlash_solref_s:.6g} 1"',
+                      'solimplimit="0.95 0.99 1e-5 0.5 2"']
+        if p.drivetrain_stiffness and p.drivetrain_stiffness > 0:
+            # engaged compliance, if it is switched on as well as the gap
+            c = 2.0 * p.drivetrain_damping_ratio * math.sqrt(
+                p.drivetrain_stiffness * i_load)
+            attrs[0] = f'damping="{c:.6g}"'
+            attrs.insert(0, f'stiffness="{p.drivetrain_stiffness:.6g}"')
+        # the wheel geom moves onto `tyre`, so `wheels` needs its own token
+        # inertia; the physical rotor inertia is the armature above.
+        rotor_inertial = ('\n        <inertial pos="0 0 0" mass="1e-3" '
+                          'diaginertia="1e-9 1e-9 1e-9"/>')
         lash_open = f"""
         <body name="tyre" pos="0 0 0">
           <joint name="lash" type="hinge" axis="0 1 0"
-                 stiffness="{p.drivetrain_stiffness:.6g}" damping="{c:.6g}"
-                 frictionloss="{stick:.6g}"/>"""
+                 {' '.join(attrs)}/>"""
         lash_close = """
         </body>"""
+        # THE BUG THAT MADE BACKLASH LOOK UNSIMULABLE. MuJoCo filters contacts
+        # between a body and its PARENT, and nothing else. With no lash the
+        # wheel geom sits on `wheels`, a direct child of `chassis`, so the pair
+        # is filtered. Adding the lash joint moves the geom onto `tyre`, a
+        # GRANDCHILD -- unfiltered. The wheel cylinder (r=0.0375 at the chassis
+        # origin) overlaps the body box (z from 0.005 to 0.095), so the wheel
+        # instantly collides with the robot's own body at 32.5 mm penetration
+        # and stays jammed there, off the floor, forever.
+        #
+        # That is why every deadband width behaved identically and why the
+        # earlier conclusion "the sim cannot stand with 2 deg of play" was
+        # reached: it was not measuring backlash, it was measuring a wheel
+        # welded into the chassis. Open loop it cost a factor of 365 in wheel
+        # speed (6.8 deg/s against 2482 rigid).
+        exclude = ("  <contact>\n"
+                   '    <exclude body1="chassis" body2="tyre"/>\n'
+                   "  </contact>\n")
     else:
+        exclude = ""
         # No <inertial> override here: the wheel geom must supply the mass.
         rotor_inertial = ""
         lash_open = lash_close = ""
@@ -185,7 +230,7 @@ def build_mjcf(p: PhysicalParams) -> str:
       <geom name="body" type="box" size="0.03 0.045 {body_half}"
             pos="0 0 {p.com_height}" mass="{chassis_mass}" friction="{fr}"/>{hub_xml}
       <body name="wheels" pos="0 0 0">
-        <joint name="wheel" type="hinge" axis="0 1 0"/>
+        <joint name="wheel" type="hinge" axis="0 1 0" armature="{armature:.6g}"/>
 {rotor_inertial}{lash_open}
         <geom name="wheel_geom" type="cylinder"
               size="{p.wheel_radius} {p.axle_half_width}" euler="90 0 0"
@@ -193,7 +238,7 @@ def build_mjcf(p: PhysicalParams) -> str:
       </body>
     </body>
   </worldbody>
-  <actuator>
+{exclude}  <actuator>
     <motor name="drive" joint="wheel" gear="1" ctrlrange="-5 5"/>
   </actuator>
 </mujoco>
