@@ -81,14 +81,32 @@ class PhysicalParams:
     # compliance only wakes up on large swings. That is plausibly why the real
     # robot tolerates a resonance the sim could not.
     drivetrain_stiction_duty: float = 0.22   # duty below which nothing winds up
-    drivetrain_stiffness: float = 2.90  # N*m/rad, both motors in parallel
+                                             # -> MuJoCo frictionloss on the
+                                             # lash joint, so the drivetrain is
+                                             # RIGID in normal operation
+    # DEFAULT OFF. The STIFFNESS is measured and solid; the claim that it is
+    # the source of the ~11 Hz ring did NOT survive being simulated, and that
+    # claim is withdrawn. See the note in model.py.
+    drivetrain_stiffness: float = 0.0   # N*m/rad both motors; measured 2.90
     drivetrain_damping_ratio: float = 0.10   # GUESS
     lash_damping: float = 2e-5         # N*m*s/rad inside the deadband; small, and
                                        # only there to stop free-flight chatter
-    rotor_inertia_frac: float = 0.30   # motor-side inertia as a fraction of the
-                                       # wheel's, i.e. the gearbox's reflected
-                                       # inertia. Sets how fast the play is
-                                       # crossed, so it matters.
+    # Motor-side inertia, as a MULTIPLE OF THE ROBOT'S INERTIA REFLECTED AT THE
+    # WHEEL -- because that ratio is what sets the drivetrain mode, and getting
+    # it wrong is what made three earlier compliance models unusable.
+    #
+    # f = sqrt(k*(1/Ir + 1/Il))/2pi. At the old parametrisation the rotor came
+    # out 0.02x the load, putting the mode at 76 Hz instead of the measured 11
+    # and turning the actuator into a velocity source. It needs to be >=10x,
+    # i.e. effectively ANCHORED, which is physically right: a geared motor
+    # reflects rotor inertia as N^2, and the 22% stiction measured in run 17
+    # pins the motor side further.
+    #
+    #    ratio    mode Hz        ratio    mode Hz
+    #     0.02       76.3           10       11.2
+    #     1.00       15.1           30       10.9
+    #     3.00       12.3        anchored    10.7
+    motor_inertia_mult: float = 10.0   # x robot inertia reflected at the wheel
     # --- sensing / timing ---
     imu_angle_bias: float = 0.0        # deg, offset on integrated pitch
     imu_rate_bias: float = 0.0         # deg/s, gyro bias
@@ -148,11 +166,13 @@ PROVENANCE = {
     "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
     "hub_imu_coupling": GUESS,      # calibrated, not measured -- see model.py
     "motor_backlash_deg": GUESS,    # retired: measured and it is not backlash
-    "drivetrain_stiffness": MEASURED,   # sysid_backlash.py 2026-08-23
+    "drivetrain_stiffness": MEASURED,   # 2.90 N*m/rad, sysid_backlash_many.py
+                                        # 2026-08-23. The NUMBER is measured;
+                                        # its role in the 11 Hz ring is not.
     "drivetrain_damping_ratio": GUESS,
     "drivetrain_stiction_duty": MEASURED,   # 100 trials 2026-08-23
     "lash_damping": GUESS,
-    "rotor_inertia_frac": GUESS,
+    "motor_inertia_mult": INFERRED,  # from the measured mode, not weighed
     "control_hz": MEASURED,       # we set it
 }
 
@@ -189,7 +209,12 @@ class DomainRandomization:
     # far softer than inferred, and the coupling can be near zero. A policy
     # that only works at 11.5 Hz has learned the wrong thing, and so has one
     # that requires the mode to exist at all.
-    hub_resonance_hz: tuple = (6.0, 45.0)
+    # PINNED AT ZERO while the model is default-off. A range here overrides the
+    # nominal default on every randomized episode, so leaving it open silently
+    # trained against a plant known to be broken -- and made the CLASSICAL
+    # controller score 2.52 s where it scores 10.00 s rigid. If a model is not
+    # trusted enough to be a default, it is not trusted enough to randomize.
+    hub_resonance_hz: tuple = (0.0, 0.0)
     hub_damping_ratio: tuple = (0.02, 0.40)
     hub_mass_frac: tuple = (0.15, 0.60)
     hub_imu_coupling: tuple = (0.0, 0.50)
@@ -200,9 +225,10 @@ class DomainRandomization:
     # Wide, because slip biases the measurement low and stall_torque is a
     # guess whose sqrt scales the resulting frequency. This spans roughly
     # 8-16 Hz of drivetrain mode.
-    drivetrain_stiffness: tuple = (1.5, 5.8)
+    drivetrain_stiffness: tuple = (0.0, 0.0)   # pinned; see hub_resonance_hz
     drivetrain_damping_ratio: tuple = (0.03, 0.30)
-    rotor_inertia_frac: tuple = (0.10, 0.60)
+    drivetrain_stiction_duty: tuple = (0.12, 0.30)
+    motor_inertia_mult: tuple = (4.0, 40.0)   # 10-12 Hz across this range
 
     def sample(self, p: PhysicalParams, rng) -> PhysicalParams:
         u = lambda r: float(rng.uniform(r[0], r[1]))
@@ -226,9 +252,10 @@ class DomainRandomization:
             hub_mass_frac=u(self.hub_mass_frac),
             hub_imu_coupling=u(self.hub_imu_coupling),
             motor_backlash_deg=u(self.motor_backlash_deg),
-            rotor_inertia_frac=u(self.rotor_inertia_frac),
+            motor_inertia_mult=u(self.motor_inertia_mult),
             drivetrain_stiffness=u(self.drivetrain_stiffness),
             drivetrain_damping_ratio=u(self.drivetrain_damping_ratio),
+            drivetrain_stiction_duty=u(self.drivetrain_stiction_duty),
             delay_ctrl_steps=int(rng.integers(self.delay_ctrl_steps[0],
                                               self.delay_ctrl_steps[1] + 1)),
         )

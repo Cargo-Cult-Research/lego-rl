@@ -158,24 +158,54 @@ def test_wheel_mass_survives_every_model_branch():
             assert wdof > 1e-6, f"lash={lash} hz={hz}: wheel dof inertia {wdof}"
 
 
-def test_backlash_is_a_deadband_not_a_floppy_joint():
-    """The encoder must move while the tyre does not, until the play is taken
-    up. This is the property that makes it backlash rather than compliance."""
+def test_drivetrain_windup_matches_measured_stiffness():
+    """The lash joint was a backlash deadband until run 17 measured the play at
+    many torques and found it grows with torque -- a spring, not a gap. So the
+    property to check is Hooke's law: under a steady torque the drivetrain
+    should wind up by tau/k, with the encoder leading the wheel by that much."""
     import math
     import mujoco
     from lego_rl.model import build_mjcf
     from lego_rl.params import nominal_params
-    from dataclasses import replace
 
-    p = replace(nominal_params(), motor_backlash_deg=2.0, hub_resonance_hz=0.0)
+    from dataclasses import replace
+    p = replace(nominal_params(), drivetrain_stiffness=2.90)   # default is off
     m = mujoco.MjModel.from_xml_string(build_mjcf(p))
     d = mujoco.MjData(m)
-    wa = m.joint("wheel").qposadr[0]
     la = m.joint("lash").qposadr[0]
-    d.ctrl[0] = 0.05
-    for _ in range(10):
+    tau = 0.05
+    d.ctrl[0] = tau
+    for _ in range(400):          # settle against the spring
         mujoco.mj_step(m, d)
-    enc = math.degrees(d.qpos[wa])
-    tyre = enc + math.degrees(d.qpos[la])
-    assert enc > 1.0, f"encoder barely moved: {enc}"
-    assert abs(tyre) < 0.5 * enc, f"tyre moved with the encoder: {tyre} vs {enc}"
+    windup = abs(float(d.qpos[la]))
+    expected = tau / p.drivetrain_stiffness
+    assert abs(windup - expected) < 0.35 * expected, (
+        f"wind-up {math.degrees(windup):.2f} deg, expected "
+        f"{math.degrees(expected):.2f} deg for tau/k")
+
+
+def test_drivetrain_mode_lands_where_measured():
+    """The motor-side inertia is what sets the mode, and getting it wrong put
+    three earlier models at 76 Hz instead of the measured 11."""
+    import math
+    import mujoco
+    from lego_rl.model import build_mjcf
+    from lego_rl.params import nominal_params
+
+    from dataclasses import replace
+    p = replace(nominal_params(), drivetrain_stiffness=2.90)   # default is off
+    m = mujoco.MjModel.from_xml_string(build_mjcf(p))
+    k = float(m.joint("lash").stiffness[0])
+    wheel_i = 0.5 * p.wheel_mass * p.wheel_radius ** 2
+    i_load = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
+    i_rotor = p.motor_inertia_mult * i_load
+    f = math.sqrt(k * (1 / i_rotor + 1 / i_load)) / (2 * math.pi)
+    assert 9.0 < f < 13.0, f"drivetrain mode at {f:.1f} Hz, measured 10.6-11.5"
+    # ... and the price of landing there: a motor side heavy enough to give
+    # this mode cannot accelerate the robot. Documented so the tradeoff is not
+    # rediscovered as a mystery. See the note in model.py.
+    tau = p.stall_torque * p.n_motors * (p.battery_v / p.v_nominal)
+    accel = tau / (i_rotor + i_load)
+    assert accel < 150, ("if this ever passes comfortably, the mode/drive "
+                         "tradeoff has been resolved and compliance can be "
+                         "turned back on")

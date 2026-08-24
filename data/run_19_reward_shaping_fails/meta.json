@@ -1,0 +1,18 @@
+{
+  "n": 19,
+  "title": "Two attempts to fix the position gain by reward shaping, both backfire",
+  "date": "2026-08-23",
+  "script": "scripts/train_ppo.py",
+  "question": "Run 18 measured the policy wandering 1.9x further than classical, and the verifier flagged the same axis. Can reward shaping close it?",
+  "verdict": "ruled-out",
+  "headline": "No, and it goes the wrong way. Pressing harder on position made the position gain SMALLER by two independent mechanisms — 0.35 to 0.08 to 0.03 — while survival collapsed from 100% to 13% to 0%. This is a sim-only result; nothing was deployed.",
+  "segment_labels": ["original weights", "cut pitch weight", "tightened X_LIMIT"],
+  "series": [["drift_mm", "peak drift (mm)", 1], ["wheelgain_x1000", "wheel gain x1000", 1]],
+  "hub_output": [
+    "controller                  survival   full  peak drift  pitchRMS  wheel-gain ratio",
+    "classical (target)            10.00s   100%      3.0cm      0.88   --",
+    "policy, original weights      10.00s   100%      7.2cm      1.09   0.35",
+    "policy, cut pitch weight       5.15s    13%     23.7cm      2.18   0.08",
+    "policy, tightened X_LIMIT      2.33s     0%     25.2cm      5.21   0.03"
+  ]
+}

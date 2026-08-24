@@ -44,6 +44,35 @@ PITCH_LIMIT = math.radians(30.0)
 # classical controller makes. The previous 0.1-on-raw-metres made a 5 cm drift
 # 111x cheaper than a 5 deg lean, and the resulting policy had a wheel-position
 # gain 33x below the classical controller it is verified against.
+# Reweighted 2026-08-23 after run 18 measured the deficiency ON HARDWARE: the
+# learned policy travels 1.9x further than the classical controller and drove
+# into a wall. The verifier had flagged exactly this axis in advance (wheel
+# gain 0.148 against 0.430, ratio 0.35), so this is responding to a predicted
+# and then observed defect, not tuning until a number matches.
+#
+# TWO ATTEMPTS TO PRESS HARDER ON POSITION, BOTH REVERTED. Run 18 measured the
+# policy travelling 1.9x further than the classical controller on hardware, and
+# the verifier had flagged the same axis in advance (wheel gain ratio 0.35). So
+# the deficiency is real. Neither fix worked, and both failed the SAME way:
+#
+#                              survival  full   drift   wheel-gain ratio
+#   these weights, X_LIM 0.5     10.00s  100%   7.2cm   0.35
+#   PITCH_WEIGHT 0.25 -> 0.085    5.15s   13%  23.7cm   0.08
+#   X_LIMIT 0.5 -> 0.25           2.33s    0%  25.2cm   0.03
+#
+# Pressing harder on position made the position gain SMALLER, by two
+# independent mechanisms. Two lessons.
+#
+# On an inverted pendulum, position control is DOWNSTREAM of attitude control
+# -- you steer position by leaning -- so defunding pitch shaping to pay for
+# position rewards the goal while removing the means.
+#
+# And tightening the bound terminates episodes early, which starves the agent
+# of experience inside the balanced regime, exactly where position control has
+# to be learned. Harder task, less data about it, worse at everything.
+#
+# The next thing to try is a CURRICULUM (start loose, tighten during training)
+# or simply more steps, not a different weight. Left alone until then.
 PITCH_WEIGHT = 0.25
 POS_WEIGHT = 0.70
 X_LIMIT = 0.5          # m; also the termination bound

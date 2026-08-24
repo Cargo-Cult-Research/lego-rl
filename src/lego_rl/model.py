@@ -111,7 +111,31 @@ def build_mjcf(p: PhysicalParams) -> str:
         chassis_mass = p.body_mass
         hub_xml = ""
 
-    # Drivetrain compliance, MEASURED (robot/sysid_backlash.py 2026-08-23).
+    # Drivetrain compliance, MEASURED (2.90 N*m/rad) but DEFAULT OFF, because
+    # the story built on top of the measurement did not survive simulation.
+    #
+    # Run 17 measured the stiffness and computed a mode at sqrt(k/I_robot) =
+    # 10.7 Hz, against 10.6 observed. That looked like the answer. It silently
+    # assumed the motor side is ANCHORED -- and an anchored motor side cannot
+    # accelerate the robot:
+    #
+    #     motor side     wheel accel        drivetrain mode
+    #     light           861 rad/s^2            76 Hz
+    #     heavy            80 rad/s^2          11.2 Hz
+    #
+    # Both requirements cannot hold at once, so compliance between MOTOR and
+    # WHEEL cannot be the source of the ring. Simulated with a heavy motor
+    # side, the robot saturates its duty for 1.4 s and turns its wheels 14
+    # degrees: it simply cannot drive. The measured stiffness stands; the
+    # claim that it explains the 11 Hz is WITHDRAWN.
+    #
+    # What would settle where the compliance actually sits: the run 17 probe
+    # held the TYRE and drove the motor, so it measured everything between the
+    # motor and a rubber tyre held in a hand -- gearbox, axle, rim AND tyre
+    # sidewall together. Holding the BODY and twisting the wheel instead
+    # measures the tyre alone. The difference localises it. If most of it is
+    # tyre, the mode is the robot rocking on tyre springs with the rim held by
+    # the motor, which gives sqrt(k/I_robot) honestly and starves nothing.
     # The actuator and encoder live on the motor-side `wheel` joint and the
     # tyre hangs off it through a `lash` hinge that is a SPRING, so the encoder
     # leads the wheel under load. Was first modelled as a backlash deadband;
@@ -120,7 +144,8 @@ def build_mjcf(p: PhysicalParams) -> str:
     # a gap being crossed.
     if p.drivetrain_stiffness and p.drivetrain_stiffness > 0:
         wheel_i = 0.5 * p.wheel_mass * p.wheel_radius ** 2
-        rotor_i = p.rotor_inertia_frac * wheel_i
+        i_load = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
+        rotor_i = p.motor_inertia_mult * i_load
         # damp against the inertia this spring actually drives: the robot's
         # mass reflected at the wheel, not the wheel alone
         i_eff = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 + wheel_i
@@ -128,10 +153,19 @@ def build_mjcf(p: PhysicalParams) -> str:
             p.drivetrain_stiffness * i_eff)
         rotor_inertial = (f'\n        <inertial pos="0 0 0" mass="1e-3" '
                           f'diaginertia="{rotor_i} {rotor_i} {rotor_i}"/>')
+        # STICTION, and it is the reason the real robot tolerates a resonance
+        # that a bare spring destroys in simulation. Run 17 measured that
+        # nothing deflects below ~22% duty; the robot balances at ~12% mean
+        # duty, so the drivetrain is frictionally LOCKED in normal operation
+        # and only goes compliant on large swings. MuJoCo's frictionloss is
+        # exactly this: a torque that must be exceeded before the joint moves.
+        stick = (p.drivetrain_stiction_duty * p.stall_torque
+                 * (p.battery_v / p.v_nominal) * p.n_motors)
         lash_open = f"""
         <body name="tyre" pos="0 0 0">
           <joint name="lash" type="hinge" axis="0 1 0"
-                 stiffness="{p.drivetrain_stiffness:.6g}" damping="{c:.6g}"/>"""
+                 stiffness="{p.drivetrain_stiffness:.6g}" damping="{c:.6g}"
+                 frictionloss="{stick:.6g}"/>"""
         lash_close = """
         </body>"""
     else:
