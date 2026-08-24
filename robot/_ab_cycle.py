@@ -11,14 +11,22 @@ PITCH_AXIS = -Axis.Y
 
 K_ANGLE, K_RATE, K_MOTOR, K_SPEED = 10.71, 0.87, 0.43, 0.30
 RATE_TAU_MS = 30
-MAX_DUTY = 40
+MAX_DUTY = 100    # the limit is now an OBSERVATION, not a setting. It was 40,
+                  # a number chosen on the unbraced robot from one 2.5 s segment
+                  # that saturated 70% of the time (see balance_classical.py).
+                  # A sim sweep says 40/60/80/100 are indistinguishable on this
+                  # plant (0.80 deg RMS, <0.5% saturation) while hardware run 20
+                  # had the net clamping 35-44%. Rather than pick a new arbitrary
+                  # number, take the clamp out of the loop and log the duty
+                  # HISTOGRAM instead, so what the controller actually asks for
+                  # is measured rather than assumed.
 DT = 5
 V_NOM = 7400
 FALL_DEG = 45
 
 SEG_MS = 6000        # per condition
 SETTLE_MS = 1200     # discarded at the start of each segment
-CYCLES = 7           # 7 x 3 conditions x 6 s = about 2 minutes
+CYCLES = 10          # 10 x 2 conditions x 6 s = about 2 minutes
 
 # kind: 0 = classical gains computed directly
 #       1 = the SAME law cast into the net and quantised (pipeline control)
@@ -31,155 +39,22 @@ CYCLES = 7           # 7 x 3 conditions x 6 s = about 2 minutes
 # 1.5-3.3 deg RMS, so 0 vs 1 isolates the pipeline and 1 vs 2 isolates the
 # policy. In sim they are indistinguishable (10.00s/100% both, 0.88 vs 0.69
 # deg RMS); this asks the same question on hardware.
-KINDS = (0, 1, 2)
-COLORS = (Color.GREEN, Color.YELLOW, Color.CYAN)
+KINDS = (0, 1)
+COLORS = (Color.GREEN, Color.YELLOW)
 ALPHA = DT / (RATE_TAU_MS + DT)
 DEG2RAD = 0.0174532925
 
 print("battery mV:", hub.battery.voltage())
-print("seg,cycle,kind,battery_mV,rms_x100,peak_x10,clamp_pct,wheel,fell,rate_hz")
-
-# ---- learned policy (Q12) ----
-LUT_act = [-4093, -4093, -4093, -4093, -4093, -4093, -4093, -4093, -4092, -4092, -4092, -4092, -4092, -4092, -4092, -4092, -4091, -4091, -4091, -4091, -4091, -4091, -4091, -4090, -4090, -4090, -4090, -4090, -4089, -4089, -4089, -4089, -4089, -4088, -4088, -4088, -4088, -4087, -4087, -4087, -4086, -4086, -4086, -4085, -4085, -4085, -4084, -4084, -4084, -4083, -4083, -4082, -4082, -4082, -4081, -4081, -4080, -4080, -4079, -4079, -4078, -4078, -4077, -4076, -4076, -4075, -4074, -4074, -4073, -4072, -4072, -4071, -4070, -4069, -4068, -4067, -4067, -4066, -4065, -4064, -4063, -4062, -4061, -4059, -4058, -4057, -4056, -4055, -4053, -4052, -4050, -4049, -4048, -4046, -4044, -4043, -4041, -4039, -4038, -4036, -4034, -4032, -4030, -4028, -4026, -4024, -4021, -4019, -4016, -4014, -4011, -4009, -4006, -4003, -4000, -3997, -3994, -3991, -3988, -3984, -3981, -3977, -3973, -3970, -3966, -3962, -3957, -3953, -3949, -3944, -3939, -3934, -3929, -3924, -3919, -3913, -3908, -3902, -3896, -3890, -3883, -3877, -3870, -3863, -3856, -3848, -3841, -3833, -3825, -3817, -3808, -3799, -3790, -3781, -3771, -3761, -3751, -3741, -3730, -3719, -3707, -3696, -3684, -3671, -3659, -3645, -3632, -3618, -3604, -3589, -3574, -3559, -3543, -3526, -3510, -3492, -3475, -3456, -3438, -3419, -3399, -3379, -3358, -3337, -3315, -3293, -3270, -3246, -3222, -3197, -3172, -3146, -3119, -3092, -3064, -3036, -3007, -2977, -2946, -2915, -2883, -2851, -2817, -2783, -2748, -2713, -2676, -2639, -2602, -2563, -2524, -2484, -2443, -2401, -2359, -2316, -2272, -2227, -2181, -2135, -2088, -2041, -1992, -1943, -1893, -1842, -1791, -1739, -1686, -1632, -1578, -1523, -1468, -1412, -1355, -1298, -1240, -1181, -1123, -1063, -1003, -943, -882, -821, -759, -697, -635, -572, -509, -446, -383, -319, -256, -192, -128, -64, 0, 64, 128, 192, 256, 319, 383, 446, 509, 572, 635, 697, 759, 821, 882, 943, 1003, 1063, 1123, 1181, 1240, 1298, 1355, 1412, 1468, 1523, 1578, 1632, 1686, 1739, 1791, 1842, 1893, 1943, 1992, 2041, 2088, 2135, 2181, 2227, 2272, 2316, 2359, 2401, 2443, 2484, 2524, 2563, 2602, 2639, 2676, 2713, 2748, 2783, 2817, 2851, 2883, 2915, 2946, 2977, 3007, 3036, 3064, 3092, 3119, 3146, 3172, 3197, 3222, 3246, 3270, 3293, 3315, 3337, 3358, 3379, 3399, 3419, 3438, 3456, 3475, 3492, 3510, 3526, 3543, 3559, 3574, 3589, 3604, 3618, 3632, 3645, 3659, 3671, 3684, 3696, 3707, 3719, 3730, 3741, 3751, 3761, 3771, 3781, 3790, 3799, 3808, 3817, 3825, 3833, 3841, 3848, 3856, 3863, 3870, 3877, 3883, 3890, 3896, 3902, 3908, 3913, 3919, 3924, 3929, 3934, 3939, 3944, 3949, 3953, 3957, 3962, 3966, 3970, 3973, 3977, 3981, 3984, 3988, 3991, 3994, 3997, 4000, 4003, 4006, 4009, 4011, 4014, 4016, 4019, 4021, 4024, 4026, 4028, 4030, 4032, 4034, 4036, 4038, 4039, 4041, 4043, 4044, 4046, 4048, 4049, 4050, 4052, 4053, 4055, 4056, 4057, 4058, 4059, 4061, 4062, 4063, 4064, 4065, 4066, 4067, 4067, 4068, 4069, 4070, 4071, 4072, 4072, 4073, 4074, 4074, 4075, 4076, 4076, 4077, 4078, 4078, 4079, 4079, 4080, 4080, 4081, 4081, 4082, 4082, 4082, 4083, 4083, 4084, 4084, 4084, 4085, 4085, 4085, 4086, 4086, 4086, 4087, 4087, 4087, 4088, 4088, 4088, 4088, 4089, 4089, 4089, 4089, 4089, 4090, 4090, 4090, 4090, 4090, 4091, 4091, 4091, 4091, 4091, 4091, 4091, 4092, 4092, 4092, 4092, 4092, 4092, 4092, 4092, 4093, 4093, 4093, 4093, 4093, 4093, 4093, 4093]
-
-
-def act(state):
-    a = int(state[0] * 4096.0); b = int(state[1] * 4096.0)
-    c = int(state[2] * 4096.0); d = int(state[3] * 4096.0)
-    v = (8626*a + 259*b + 6*c + -36*d >> 12) + -101
-    if v <= -16384:
-        h0 = -4096
-    elif v >= 16384:
-        h0 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h0 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-6591*a + -415*b + -101*c + -59*d >> 12) + 79
-    if v <= -16384:
-        h1 = -4096
-    elif v >= 16384:
-        h1 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h1 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (10061*a + -308*b + -71*c + 48*d >> 12) + 197
-    if v <= -16384:
-        h2 = -4096
-    elif v >= 16384:
-        h2 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h2 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (3508*a + -198*b + -57*c + 23*d >> 12) + 345
-    if v <= -16384:
-        h3 = -4096
-    elif v >= 16384:
-        h3 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h3 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-3511*a + 15*b + -43*c + -136*d >> 12) + -174
-    if v <= -16384:
-        h4 = -4096
-    elif v >= 16384:
-        h4 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h4 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (624*a + 1304*b + -110*c + 43*d >> 12) + -236
-    if v <= -16384:
-        h5 = -4096
-    elif v >= 16384:
-        h5 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h5 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-6272*a + -194*b + 48*c + 79*d >> 12) + 60
-    if v <= -16384:
-        h6 = -4096
-    elif v >= 16384:
-        h6 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h6 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (5948*a + 547*b + 75*c + 95*d >> 12) + -35
-    if v <= -16384:
-        h7 = -4096
-    elif v >= 16384:
-        h7 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        h7 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-1435*h0 + 3340*h1 + -3480*h2 + -364*h3 + 4135*h4 + -97*h5 + -1165*h6 + -2132*h7 >> 12) + -418
-    if v <= -16384:
-        g0 = -4096
-    elif v >= 16384:
-        g0 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g0 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (1389*h0 + -535*h1 + 2454*h2 + -729*h3 + 1876*h4 + -925*h5 + 3544*h6 + 4247*h7 >> 12) + 134
-    if v <= -16384:
-        g1 = -4096
-    elif v >= 16384:
-        g1 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g1 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (311*h0 + 3615*h1 + 2039*h2 + 3998*h3 + 2523*h4 + 1997*h5 + -1563*h6 + -3624*h7 >> 12) + 134
-    if v <= -16384:
-        g2 = -4096
-    elif v >= 16384:
-        g2 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g2 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-3632*h0 + 3421*h1 + 1463*h2 + -1833*h3 + 303*h4 + 914*h5 + -643*h6 + -173*h7 >> 12) + 239
-    if v <= -16384:
-        g3 = -4096
-    elif v >= 16384:
-        g3 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g3 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-614*h0 + -417*h1 + -873*h2 + -584*h3 + 2205*h4 + 1879*h5 + 2997*h6 + -4521*h7 >> 12) + -101
-    if v <= -16384:
-        g4 = -4096
-    elif v >= 16384:
-        g4 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g4 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (2569*h0 + 4331*h1 + -1048*h2 + -427*h3 + -293*h4 + -2534*h5 + 425*h6 + -2879*h7 >> 12) + 251
-    if v <= -16384:
-        g5 = -4096
-    elif v >= 16384:
-        g5 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g5 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (-2111*h0 + -386*h1 + -323*h2 + 2392*h3 + 2581*h4 + -3603*h5 + -1040*h6 + -1980*h7 >> 12) + 268
-    if v <= -16384:
-        g6 = -4096
-    elif v >= 16384:
-        g6 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g6 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    v = (603*h0 + 667*h1 + 2178*h2 + -2495*h3 + 3328*h4 + -1100*h5 + -3136*h6 + -4088*h7 >> 12) + -60
-    if v <= -16384:
-        g7 = -4096
-    elif v >= 16384:
-        g7 = 4096
-    else:
-        t = v + 16384; i = t >> 6; e = LUT_act[i]
-        g7 = e + ((LUT_act[i+1] - e) * (t & 63) >> 6)
-    u = (-1204*g0 + 1138*g1 + -2133*g2 + -255*g3 + -832*g4 + -951*g5 + -477*g6 + -2148*g7 >> 12) + -24
-    if u < -4096:
-        return -1.0
-    if u > 4096:
-        return 1.0
-    return u * 0.000244140625
+# mean_x100 and sigma_x100 are the point of this revision. Run 20's rms_x100 was
+# taken about the ARM-TIME pitch reference, and that reference drifts (~0.2 deg/s
+# of uncorrected gyro bias; the hub is never stationary long enough for Pybricks
+# to re-zero it). The controller absorbs the false tilt by walking the wheel out
+# along K_ANGLE*pitch + K_MOTOR*wheel = 0, so rms ended up tracking wheel angle
+# at r=0.999 and carried almost no information about oscillation.
+#   mean  = the drift itself (and any real lean)
+#   sigma = RMS about the segment mean = the oscillation, drift-immune
+print("seg,cycle,kind,battery_mV,rms_x100,mean_x100,sigma_x100,peak_x10,"
+      "clamp_pct,dmax,wheel,fell,rate_hz")
 
 # ---- the classical law cast into the same net (Q12) ----
 LUT_act_lin = [-4093, -4093, -4093, -4093, -4093, -4093, -4093, -4093, -4092, -4092, -4092, -4092, -4092, -4092, -4092, -4092, -4091, -4091, -4091, -4091, -4091, -4091, -4091, -4090, -4090, -4090, -4090, -4090, -4089, -4089, -4089, -4089, -4089, -4088, -4088, -4088, -4088, -4087, -4087, -4087, -4086, -4086, -4086, -4085, -4085, -4085, -4084, -4084, -4084, -4083, -4083, -4082, -4082, -4082, -4081, -4081, -4080, -4080, -4079, -4079, -4078, -4078, -4077, -4076, -4076, -4075, -4074, -4074, -4073, -4072, -4072, -4071, -4070, -4069, -4068, -4067, -4067, -4066, -4065, -4064, -4063, -4062, -4061, -4059, -4058, -4057, -4056, -4055, -4053, -4052, -4050, -4049, -4048, -4046, -4044, -4043, -4041, -4039, -4038, -4036, -4034, -4032, -4030, -4028, -4026, -4024, -4021, -4019, -4016, -4014, -4011, -4009, -4006, -4003, -4000, -3997, -3994, -3991, -3988, -3984, -3981, -3977, -3973, -3970, -3966, -3962, -3957, -3953, -3949, -3944, -3939, -3934, -3929, -3924, -3919, -3913, -3908, -3902, -3896, -3890, -3883, -3877, -3870, -3863, -3856, -3848, -3841, -3833, -3825, -3817, -3808, -3799, -3790, -3781, -3771, -3761, -3751, -3741, -3730, -3719, -3707, -3696, -3684, -3671, -3659, -3645, -3632, -3618, -3604, -3589, -3574, -3559, -3543, -3526, -3510, -3492, -3475, -3456, -3438, -3419, -3399, -3379, -3358, -3337, -3315, -3293, -3270, -3246, -3222, -3197, -3172, -3146, -3119, -3092, -3064, -3036, -3007, -2977, -2946, -2915, -2883, -2851, -2817, -2783, -2748, -2713, -2676, -2639, -2602, -2563, -2524, -2484, -2443, -2401, -2359, -2316, -2272, -2227, -2181, -2135, -2088, -2041, -1992, -1943, -1893, -1842, -1791, -1739, -1686, -1632, -1578, -1523, -1468, -1412, -1355, -1298, -1240, -1181, -1123, -1063, -1003, -943, -882, -821, -759, -697, -635, -572, -509, -446, -383, -319, -256, -192, -128, -64, 0, 64, 128, 192, 256, 319, 383, 446, 509, 572, 635, 697, 759, 821, 882, 943, 1003, 1063, 1123, 1181, 1240, 1298, 1355, 1412, 1468, 1523, 1578, 1632, 1686, 1739, 1791, 1842, 1893, 1943, 1992, 2041, 2088, 2135, 2181, 2227, 2272, 2316, 2359, 2401, 2443, 2484, 2524, 2563, 2602, 2639, 2676, 2713, 2748, 2783, 2817, 2851, 2883, 2915, 2946, 2977, 3007, 3036, 3064, 3092, 3119, 3146, 3172, 3197, 3222, 3246, 3270, 3293, 3315, 3337, 3358, 3379, 3399, 3419, 3438, 3456, 3475, 3492, 3510, 3526, 3543, 3559, 3574, 3589, 3604, 3618, 3632, 3645, 3659, 3671, 3684, 3696, 3707, 3719, 3730, 3741, 3751, 3761, 3771, 3781, 3790, 3799, 3808, 3817, 3825, 3833, 3841, 3848, 3856, 3863, 3870, 3877, 3883, 3890, 3896, 3902, 3908, 3913, 3919, 3924, 3929, 3934, 3939, 3944, 3949, 3953, 3957, 3962, 3966, 3970, 3973, 3977, 3981, 3984, 3988, 3991, 3994, 3997, 4000, 4003, 4006, 4009, 4011, 4014, 4016, 4019, 4021, 4024, 4026, 4028, 4030, 4032, 4034, 4036, 4038, 4039, 4041, 4043, 4044, 4046, 4048, 4049, 4050, 4052, 4053, 4055, 4056, 4057, 4058, 4059, 4061, 4062, 4063, 4064, 4065, 4066, 4067, 4067, 4068, 4069, 4070, 4071, 4072, 4072, 4073, 4074, 4074, 4075, 4076, 4076, 4077, 4078, 4078, 4079, 4079, 4080, 4080, 4081, 4081, 4082, 4082, 4082, 4083, 4083, 4084, 4084, 4084, 4085, 4085, 4085, 4086, 4086, 4086, 4087, 4087, 4087, 4088, 4088, 4088, 4088, 4089, 4089, 4089, 4089, 4089, 4090, 4090, 4090, 4090, 4090, 4091, 4091, 4091, 4091, 4091, 4091, 4091, 4092, 4092, 4092, 4092, 4092, 4092, 4092, 4092, 4093, 4093, 4093, 4093, 4093, 4093, 4093, 4093]
@@ -322,7 +197,7 @@ def act_lin(state):
     if u > 4096:
         return 1.0
     return u * 0.000244140625
-# ---- end policies ----
+# ---- end policy ----
 
 
 def arm():
@@ -349,16 +224,25 @@ n = 0
 seg = 0
 
 for cyc in range(CYCLES):
-    for ki in range(len(KINDS)):
+    # ABBA. In run 20 every cycle ran the conditions in the same order, so the
+    # second condition always carried 6 s more accumulated reference drift than
+    # the first -- and the drift grew monotonically all run. That alone produced
+    # a "10/10" result. Alternating the order each cycle makes the drift a
+    # common-mode term instead of a per-condition one.
+    order = range(len(KINDS)) if cyc % 2 == 0 else range(len(KINDS) - 1, -1, -1)
+    for ki in order:
         kind = KINDS[ki]
         hub.light.on(COLORS[ki])
         batt = hub.battery.voltage()
         t0 = watch.time()
         k = 0            # per-segment time base; a global counter broke the
                          # ring test by making every deadline already past
+        sum_p = 0.0
         sum_sq = 0.0
         peak = 0.0
+        dmax = 0.0       # largest duty the law ASKED for, before any clamp
         clamped = 0
+        hist = [0] * 10  # |commanded duty| in 10% bins; bin 9 = 90% and over
         m = 0
         fell = 0
         while watch.time() - t0 < SEG_MS:
@@ -377,35 +261,62 @@ for cyc in range(CYCLES):
             elif kind == 1:
                 duty = act_lin([pitch * DEG2RAD, rate_f * DEG2RAD,
                                 angle * DEG2RAD, speed * DEG2RAD]) * 100
-            else:
-                duty = act([pitch * DEG2RAD, rate_f * DEG2RAD,
-                            angle * DEG2RAD, speed * DEG2RAD]) * 100
-            hit = 0
+            ad = duty if duty > 0 else -duty
             if duty > MAX_DUTY:
                 duty = MAX_DUTY
-                hit = 1
             elif duty < -MAX_DUTY:
                 duty = -MAX_DUTY
-                hit = 1
+            # Clamp AFTER the battery scaling, not before. out = duty*V_NOM/V can
+            # exceed 100 whenever the battery sits below V_NOM, and Pybricks then
+            # clips it silently -- an unlogged, battery-dependent limit that
+            # differs between conditions if one asks for more duty. Clamp it here
+            # so the limit is always the one we counted.
             out = duty * V_NOM / hub.battery.voltage()
+            hit = 0
+            if out > 100:
+                out = 100
+                hit = 1
+            elif out < -100:
+                out = -100
+                hit = 1
             left.dc(out)
             right.dc(out)
             # statistics only AFTER the switching transient has passed
             if watch.time() - t0 > SETTLE_MS:
+                sum_p += pitch
                 sum_sq += pitch * pitch
                 if abs(pitch) > peak:
                     peak = abs(pitch)
+                if ad > dmax:
+                    dmax = ad
+                b = int(ad * 0.1)
+                hist[9 if b > 9 else b] += 1
                 clamped += hit      # counted over the same window as the rest
                 m += 1
             n += 1
             k += 1
             wait(max(0, t0 + DT * k - watch.time()))
-        rms = int(100 * (sum_sq / m) ** 0.5) if m else -1
+        if m:
+            mean = sum_p / m
+            rms = int(100 * (sum_sq / m) ** 0.5)
+            # RMS about the segment mean. Drift shifts the mean, not the spread,
+            # so this is the number that survives a drifting pitch reference.
+            v = sum_sq / m - mean * mean
+            sigma = int(100 * (v ** 0.5)) if v > 0 else 0
+        else:
+            mean = 0.0
+            rms = -1
+            sigma = -1
         rate_hz = (1000 * k // (watch.time() - t0)) if watch.time() > t0 else 0
         print(seg, ",", cyc, ",", kind, ",", batt, ",", rms, ",",
+              int(100 * mean), ",", sigma, ",",
               int(10 * peak), ",", (100 * clamped // (m + 1)), ",",
+              int(dmax), ",",
               int((left.angle() + right.angle()) / 2), ",", fell,
               ",", rate_hz)
+        print("H", ",", seg, ",", kind, ",", hist[0], ",", hist[1], ",",
+              hist[2], ",", hist[3], ",", hist[4], ",", hist[5], ",",
+              hist[6], ",", hist[7], ",", hist[8], ",", hist[9])
         seg += 1
         if fell:
             left.dc(0)

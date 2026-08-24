@@ -29,8 +29,30 @@ RATE_TAU_MS = 30  # low-pass on the gyro term. Raw was the single biggest cause
                   # of the original 14 Hz shake (run 1); sweeping down is worse
                   # in both directions tested -- 15 ms and 0 ms both fell
                   # (runs 9, 10).
-MAX_DUTY = 40     # clamping authority beat leaving it at 100: lowest pitch RMS
-                  # and least drift of the gain sweep (run 5).
+MAX_DUTY = 40     # PROVENANCE IS WEAK -- do not trust this number.
+                  #
+                  # It came from ONE 2.5 s segment of an early four-config
+                  # sweep, chosen for lowest pitch RMS (4.66 deg). But in that
+                  # same sweep it was SATURATING 70% of the time: it was never
+                  # a limit the controller stays under, it is a partially
+                  # bang-bang mode that won on one sample.
+                  #
+                  # Every condition it was chosen under has since changed. That
+                  # sweep ran on the UNBRACED robot with the friction
+                  # compensation still enabled and before the gyro filter was
+                  # settled. Bracing cut the ring 81% (run 12) and removing the
+                  # friction term halved the peak (run 8).
+                  #
+                  # The sweep predates the lab book, so there is no run
+                  # directory and no recorded raw data -- it exists only in a
+                  # chat transcript. An earlier version of this comment cited
+                  # "run 5", which is the yaw-loop experiment. Wrong.
+                  #
+                  # It is now load-bearing: run 20 found BOTH controllers
+                  # operating right at this limit (classical commands 43%,
+                  # the net 46%), which makes every comparison hypersensitive
+                  # to a 3% modelling difference. Needs a proper sweep on the
+                  # current robot.
 K_SYNC = 0        # yaw loop off. Proportional-only and undamped, but innocent:
                   # switching it off changes the pitch ring not at all (run 5).
 FRICTION_COMP = 0  # the reference design adds +-10% duty in the direction of

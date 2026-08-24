@@ -44,7 +44,15 @@ PITCH_AXIS = -Axis.Y
 
 K_ANGLE, K_RATE, K_MOTOR, K_SPEED = 10.71, 0.87, 0.43, 0.30
 RATE_TAU_MS = 30
-MAX_DUTY = 40
+MAX_DUTY = 100    # the limit is now an OBSERVATION, not a setting. It was 40,
+                  # a number chosen on the unbraced robot from one 2.5 s segment
+                  # that saturated 70% of the time (see balance_classical.py).
+                  # A sim sweep says 40/60/80/100 are indistinguishable on this
+                  # plant (0.80 deg RMS, <0.5% saturation) while hardware run 20
+                  # had the net clamping 35-44%. Rather than pick a new arbitrary
+                  # number, take the clamp out of the loop and log the duty
+                  # HISTOGRAM instead, so what the controller actually asks for
+                  # is measured rather than assumed.
 DT = 5
 V_NOM = 7400
 FALL_DEG = 45
@@ -70,7 +78,16 @@ ALPHA = DT / (RATE_TAU_MS + DT)
 DEG2RAD = 0.0174532925
 
 print("battery mV:", hub.battery.voltage())
-print("seg,cycle,kind,battery_mV,rms_x100,peak_x10,clamp_pct,wheel,fell,rate_hz")
+# mean_x100 and sigma_x100 are the point of this revision. Run 20's rms_x100 was
+# taken about the ARM-TIME pitch reference, and that reference drifts (~0.2 deg/s
+# of uncorrected gyro bias; the hub is never stationary long enough for Pybricks
+# to re-zero it). The controller absorbs the false tilt by walking the wheel out
+# along K_ANGLE*pitch + K_MOTOR*wheel = 0, so rms ended up tracking wheel angle
+# at r=0.999 and carried almost no information about oscillation.
+#   mean  = the drift itself (and any real lean)
+#   sigma = RMS about the segment mean = the oscillation, drift-immune
+print("seg,cycle,kind,battery_mV,rms_x100,mean_x100,sigma_x100,peak_x10,"
+      "clamp_pct,dmax,wheel,fell,rate_hz")
 '''
 
 BODY = '''
@@ -99,16 +116,25 @@ n = 0
 seg = 0
 
 for cyc in range(CYCLES):
-    for ki in range(len(KINDS)):
+    # ABBA. In run 20 every cycle ran the conditions in the same order, so the
+    # second condition always carried 6 s more accumulated reference drift than
+    # the first -- and the drift grew monotonically all run. That alone produced
+    # a "10/10" result. Alternating the order each cycle makes the drift a
+    # common-mode term instead of a per-condition one.
+    order = range(len(KINDS)) if cyc % 2 == 0 else range(len(KINDS) - 1, -1, -1)
+    for ki in order:
         kind = KINDS[ki]
         hub.light.on(COLORS[ki])
         batt = hub.battery.voltage()
         t0 = watch.time()
         k = 0            # per-segment time base; a global counter broke the
                          # ring test by making every deadline already past
+        sum_p = 0.0
         sum_sq = 0.0
         peak = 0.0
+        dmax = 0.0       # largest duty the law ASKED for, before any clamp
         clamped = 0
+        hist = [0] * 10  # |commanded duty| in 10% bins; bin 9 = 90% and over
         m = 0
         fell = 0
         while watch.time() - t0 < SEG_MS:
@@ -130,32 +156,62 @@ for cyc in range(CYCLES):
             else:
                 duty = act([pitch * DEG2RAD, rate_f * DEG2RAD,
                             angle * DEG2RAD, speed * DEG2RAD]) * 100
-            hit = 0
+            ad = duty if duty > 0 else -duty
             if duty > MAX_DUTY:
                 duty = MAX_DUTY
-                hit = 1
             elif duty < -MAX_DUTY:
                 duty = -MAX_DUTY
-                hit = 1
+            # Clamp AFTER the battery scaling, not before. out = duty*V_NOM/V can
+            # exceed 100 whenever the battery sits below V_NOM, and Pybricks then
+            # clips it silently -- an unlogged, battery-dependent limit that
+            # differs between conditions if one asks for more duty. Clamp it here
+            # so the limit is always the one we counted.
             out = duty * V_NOM / hub.battery.voltage()
+            hit = 0
+            if out > 100:
+                out = 100
+                hit = 1
+            elif out < -100:
+                out = -100
+                hit = 1
             left.dc(out)
             right.dc(out)
             # statistics only AFTER the switching transient has passed
             if watch.time() - t0 > SETTLE_MS:
+                sum_p += pitch
                 sum_sq += pitch * pitch
                 if abs(pitch) > peak:
                     peak = abs(pitch)
+                if ad > dmax:
+                    dmax = ad
+                b = int(ad * 0.1)
+                hist[9 if b > 9 else b] += 1
                 clamped += hit      # counted over the same window as the rest
                 m += 1
             n += 1
             k += 1
             wait(max(0, t0 + DT * k - watch.time()))
-        rms = int(100 * (sum_sq / m) ** 0.5) if m else -1
+        if m:
+            mean = sum_p / m
+            rms = int(100 * (sum_sq / m) ** 0.5)
+            # RMS about the segment mean. Drift shifts the mean, not the spread,
+            # so this is the number that survives a drifting pitch reference.
+            v = sum_sq / m - mean * mean
+            sigma = int(100 * (v ** 0.5)) if v > 0 else 0
+        else:
+            mean = 0.0
+            rms = -1
+            sigma = -1
         rate_hz = (1000 * k // (watch.time() - t0)) if watch.time() > t0 else 0
         print(seg, ",", cyc, ",", kind, ",", batt, ",", rms, ",",
+              int(100 * mean), ",", sigma, ",",
               int(10 * peak), ",", (100 * clamped // (m + 1)), ",",
+              int(dmax), ",",
               int((left.angle() + right.angle()) / 2), ",", fell,
               ",", rate_hz)
+        print("H", ",", seg, ",", kind, ",", hist[0], ",", hist[1], ",",
+              hist[2], ",", hist[3], ",", hist[4], ",", hist[5], ",",
+              hist[6], ",", hist[7], ",", hist[8], ",", hist[9])
         seg += 1
         if fell:
             left.dc(0)
@@ -173,6 +229,13 @@ print("END")
 
 
 def main() -> None:
+    import sys
+    # --pipeline: two conditions only, classical direct vs the same law through
+    # the net. Both hold station, so the run does not degrade -- the three-way
+    # version dragged the robot away every third segment via the learned
+    # policy's weak position gain and yielded only 2 clean cycles of 7.
+    pipeline_only = "--pipeline" in sys.argv
+
     def grab(name, fn):
         src = re.sub(r'^""".*?"""\n', "", (ROOT / "robot" / name).read_text(),
                      count=1, flags=re.S)
@@ -181,13 +244,28 @@ def main() -> None:
         src = src.replace("LUT_act", "LUT_" + fn)
         return src
 
-    learned = grab("policy_fast.py", "act")
     linear = grab("policy_linear_fast.py", "act_lin")
+    header, body = HEADER, BODY
+    if pipeline_only:
+        header = (header.replace("KINDS = (0, 1, 2)", "KINDS = (0, 1)")
+                        .replace("COLORS = (Color.GREEN, Color.YELLOW, Color.CYAN)",
+                                 "COLORS = (Color.GREEN, Color.YELLOW)")
+                        .replace("CYCLES = 7           # 7 x 3 conditions x 6 s = about 2 minutes",
+                                 "CYCLES = 10          # 10 x 2 conditions x 6 s = about 2 minutes"))
+        # the learned policy is not inlined at all in this mode
+        body = body.replace("""            else:
+                duty = act([pitch * DEG2RAD, rate_f * DEG2RAD,
+                            angle * DEG2RAD, speed * DEG2RAD]) * 100
+""", "")
+        pol = ("\n# ---- the classical law cast into the same net (Q12) ----\n"
+               + linear + "# ---- end policy ----\n")
+    else:
+        learned = grab("policy_fast.py", "act")
+        pol = ("\n# ---- learned policy (Q12) ----\n" + learned
+               + "\n# ---- the classical law cast into the same net (Q12) ----\n"
+               + linear + "# ---- end policies ----\n")
     out = ROOT / "robot" / "_ab_cycle.py"
-    out.write_text(HEADER
-                   + "\n# ---- learned policy (Q12) ----\n" + learned
-                   + "\n# ---- the classical law cast into the same net (Q12) ----\n"
-                   + linear + "# ---- end policies ----\n" + BODY)
+    out.write_text(header + pol + body)
     print(f"wrote {out} ({out.stat().st_size} bytes)")
 
 
