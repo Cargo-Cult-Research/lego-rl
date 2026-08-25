@@ -1,0 +1,23 @@
+{
+  "n": 30,
+  "title": "The real lag cliff is beyond 90 ms",
+  "date": "2026-08-24",
+  "script": "robot/sysid_ratetau.py",
+  "question": "How much rate-filter lag does the hardware tolerate, vs the sim's 15-30 ms cliff?",
+  "verdict": "guilty",
+  "headline": "All seven segments survived, zero falls: sigma at 60 ms (1.79) and 90 ms (2.21) BEAT their bracketing 30 ms anchors (2.5-3.0), whose monotone session-wear trend the ABBA design absorbs. On hardware, tripling the rate lag is neutral-to-beneficial; the sim falls 6/6 at 30 ms. The sim's lag fragility is now a measured factor of >=3-6x, and it \u2014 not any real cliff \u2014 is what killed the net controllers' transfer.",
+  "series": [],
+  "hub_output": [
+    "battery mV: 7595",
+    "taus: (30, 45, 30, 60, 30, 90, 30)",
+    "seg,tau_ms,battery_mV,rms_x100,mean_x100,sigma_x100,peak_x10,dmax,wheel,fell,rate_hz",
+    "0 , 30 , 7593 , 299 , -185 , 235 , 71 , 135 , 50 , 0 , 199",
+    "1 , 45 , 6743 , 416 , -327 , 257 , 91 , 117 , 118 , 0 , 200",
+    "2 , 30 , 6810 , 798 , -757 , 252 , 130 , 141 , 223 , 0 , 200",
+    "3 , 60 , 7004 , 1235 , -1222 , 179 , 166 , 75 , 368 , 0 , 200",
+    "4 , 30 , 7458 , 1808 , -1784 , 292 , 260 , 156 , 509 , 0 , 200",
+    "5 , 90 , 6682 , 2398 , -2388 , 221 , 287 , 117 , 661 , 0 , 200",
+    "6 , 30 , 7446 , 3037 , -3022 , 297 , 385 , 155 , 831 , 0 , 200",
+    "END"
+  ]
+}

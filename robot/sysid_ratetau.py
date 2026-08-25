@@ -39,6 +39,10 @@ SETTLE_MS = 1500     # discarded after each tau switch
 
 print("battery mV:", hub.battery.voltage())
 print("taus:", TAUS)
+# The color legend prints BEFORE anything happens — the run-27 lesson: the
+# operator goes by colors, so every session announces its own mapping.
+print("LED: GREEN = 30 ms anchor | YELLOW = 45 | ORANGE = 60 | MAGENTA = 90"
+      " | RED = stand me up")
 print("seg,tau_ms,battery_mV,rms_x100,mean_x100,sigma_x100,peak_x10,dmax,wheel,fell,rate_hz")
 
 hub.light.on(Color.RED)

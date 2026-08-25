@@ -1,0 +1,27 @@
+{
+  "n": 31,
+  "title": "Latency split: actuation confirmed, sensing probe voided by protocol",
+  "date": "2026-08-24",
+  "script": "robot/sysid_latency.py",
+  "question": "How does the 15-19 ms actuation figure decompose, and how stale is the gyro reading?",
+  "verdict": "inconclusive",
+  "headline": "Parts 1-2 reconfirm: loop jitter <=1 ms hidden in a 5 ms worst period, actuation 14-20 ms. Part 3 (gyro response 26-69 ms) is VOID: the streaming bug ate the stand-it-up prompt and the robot lay flat throughout, so the reaction kick never matched the protocol. Rerun standing \u2014 though even these tainted numbers hint the sensing chain is not fast.",
+  "series": [],
+  "hub_output": [
+    "1000 ticks, worst period ms: 5",
+    "actuation latency ms: 14",
+    "actuation latency ms: 19",
+    "actuation latency ms: 20",
+    "actuation latency ms: 18",
+    "actuation latency ms: 18",
+    "part 3: stand the robot UP on the ground, steady it lightly. 6 trials.",
+    "gyro response ms: 69",
+    "gyro response ms: 32",
+    "gyro response ms: 33",
+    "gyro response ms: 32",
+    "gyro response ms: 58",
+    "gyro response ms: 26",
+    "part 3 done: gyro-response minus ~1 ms of body spin-up = sensing lag.",
+    "compare with part 2: encoder time - gyro time ~= stiction/backlash takeup"
+  ]
+}
