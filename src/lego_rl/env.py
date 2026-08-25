@@ -140,6 +140,7 @@ class BalancerEnv(gym.Env):
                 self.data.ctrl[0] = 0.0
                 mujoco.mj_step(self.model, self.data)
         self._delay = deque([0.0] * p.delay_ctrl_steps)
+        self._rate_filt = 0.0
         self._t = 0
         return self._obs(), {}
 
@@ -202,14 +203,33 @@ class BalancerEnv(gym.Env):
     def _obs(self):
         p = self.p
         s = self._imu_state()
+        # THE PITCH REFERENCE WALKS. Pybricks integrates the (biased) gyro and
+        # only re-zeros while stationary, which a balancer never is — so the
+        # measured pitch accumulates imu_rate_bias * t of error (~0.2 deg/s on
+        # hardware, runs 20/26). The controller absorbs the false tilt by
+        # walking the wheel out along the null line, so the WHEEL channel is
+        # drift-contaminated too, emergently. This sim used to model the bias
+        # as a constant rate offset without its integral — and the first
+        # policy trained with a strong wheel-position gain transferred as a
+        # duty-hot mess (run 27): it trusted a channel reality poisons.
+        drift = math.radians(p.imu_rate_bias) * (self._t / p.control_hz)
         meas = s + np.array([
-            math.radians(p.imu_angle_bias)
+            math.radians(p.imu_angle_bias) + drift
             + self.np_random.normal(0.0, math.radians(p.imu_angle_noise)),
             math.radians(p.imu_rate_bias)
             + self.np_random.normal(0.0, math.radians(p.imu_rate_noise)),
             0.0,
             0.0,
         ])
+        # The hub low-passes the (noisy, biased) gyro before any controller
+        # sees it — hubconfig RATE_TAU_MS, load-bearing since run 3. The sim
+        # used to hand back the raw rate, i.e. every policy trained here met
+        # ~15 ms of unmodeled rate-channel lag on the robot.
+        if p.rate_filter_tau_ms > 0:
+            dt_ms = 1000.0 / p.control_hz
+            alpha = dt_ms / (p.rate_filter_tau_ms + dt_ms)
+            self._rate_filt += alpha * (meas[1] - self._rate_filt)
+            meas[1] = self._rate_filt
         # ENCODER QUANTISATION. Pybricks hands back integer degrees and integer
         # deg/s; the sim had infinite resolution, and that is not a rounding
         # detail here. The quantum is the same size as the backlash gap, so the

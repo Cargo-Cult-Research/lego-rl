@@ -193,6 +193,25 @@ class PhysicalParams:
     delay_ctrl_steps: int = field(default=4, metadata=_p(
         MEASURED, "sysid_latency 2026-08-22: loop jitter <=1 ms, "
                   "cmd->motion 15-19 ms (incl. stiction)"))
+    # The hub low-passes the gyro rate before ANY controller sees it
+    # (hubconfig RATE_TAU_MS = 30 — load-bearing since run 3, and the thing
+    # that saved the 200 Hz policy in run 16). The sim fed policies the RAW
+    # rate, so every policy trained here met ~15 ms of unmodeled phase lag at
+    # deployment — discovered while hunting run 27's transfer failure.
+    #
+    # DEFAULT OFF, and the reason is the strongest open sim-real anchor we
+    # have (run 28): with the filter modeled, EVERY controller falls in sim —
+    # classical 6/6 even at ZERO actuation delay — while on hardware the same
+    # filter is what makes every controller STAND (raw gyro fell at 4.0 s,
+    # run 16). The real robot needs what kills the sim robot. Something
+    # structural is miscalibrated: the sim plant is far more lag-fragile than
+    # the hardware (suspects: no static friction at zero speed, stall_torque
+    # GUESS setting the loop gain, pendulum time constant off via com_height
+    # effective inertia). Until that hunt lands, enabling this "correct"
+    # element makes the sim less like the robot, not more.
+    rate_filter_tau_ms: float = field(default=0.0, metadata=_p(
+        MEASURED, "the hub's value is 30 (hubconfig RATE_TAU_MS); modeled "
+                  "but default-off pending the run 28 lag-fragility hunt"))
 
     # --- hub mount compliance: the reason M0 took eleven runs ---
     # The IMU sits in the hub, and the hub is attached to the chassis through
@@ -269,7 +288,11 @@ class DomainRandomization:
     ground_friction: tuple = (0.6, 1.4)
     battery_v: tuple = (6.5, 9.4)
     imu_angle_bias: tuple = (-1.0, 1.0)     # deg
-    imu_rate_bias: tuple = (-1.0, 1.0)      # deg/s
+    # Now that the bias INTEGRATES into the pitch measurement (env._obs),
+    # this range is the reference-walk rate. Hardware measured 0.12-0.2 deg/s
+    # (runs 20, 26); +-0.4 is 2x the worst observed. The old +-1.0 predates
+    # the integration and would mean +-10 deg of reference error per episode.
+    imu_rate_bias: tuple = (-0.4, 0.4)      # deg/s
     imu_angle_noise: tuple = (0.02, 0.10)   # deg
     imu_rate_noise: tuple = (0.05, 0.50)    # deg/s
     delay_ctrl_steps: tuple = (2, 6)        # ticks, i.e. 10-30 ms around measured ~19

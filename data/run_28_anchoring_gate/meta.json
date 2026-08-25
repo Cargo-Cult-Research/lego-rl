@@ -1,0 +1,17 @@
+{
+  "n": 28,
+  "title": "The anchoring gate: the reference walks, and the filter inversion",
+  "date": "2026-08-24",
+  "script": "src/lego_rl/env.py + tests/test_contracts.py",
+  "question": "Model the hub's two known sensor behaviors (bias walk, rate filter) — does the sim then explain run 27's transfer failure?",
+  "verdict": "progress",
+  "headline": "The bias walk is modeled and REFUTES run 27's prime suspect (the drift punishes the old policy, not the candidate). Modeling the 30 ms rate filter uncovered a stark inversion: the real robot NEEDS the filter, the sim robot cannot TOLERATE it (classical falls 6/6 at zero delay) — the sim is structurally too lag-fragile, and that is now the top sysID target.",
+  "series": [],
+  "hub_output": [
+    "-- sim experiment; drift eval = 8 eps/condition, filter probe = 6 eps --",
+    "drift 0.2-0.4 dps: old policy terminates 6-8/8 (walks out); 8M candidate 0 falls, unchanged",
+    "filter 30ms: classical falls 6/6 at delay 20ms, 10ms, and 0ms; old policy falls 6/6",
+    "filter 15ms: classical 0/6 falls -- the sim cliff sits between 15 and 30 ms of rate lag",
+    "hardware: the same 30ms filter is load-bearing for every controller (runs 16, 22, 26)"
+  ]
+}

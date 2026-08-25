@@ -200,3 +200,28 @@ def test_export_roundtrip_matches_sb3(tmp_path):
         got = ns["act"](list(s))
         worst = max(worst, abs(got - want))
     assert worst < 2e-3, f"export drifts from SB3 by {worst:.5f}"
+
+
+def test_gyro_bias_integrates_into_pitch():
+    """The hub integrates a biased gyro, so the measured pitch must WALK at
+    imu_rate_bias deg/s — the run 20/26/27 mechanism. A constant-offset bias
+    model is what let run 27's candidate train on a channel reality poisons."""
+    env = BalancerEnv(task="balance", randomize=False,
+                      param_override={"imu_angle_noise": 0.0,
+                                      "imu_rate_noise": 0.0,
+                                      "imu_rate_bias": 1.0,   # deg/s
+                                      "motor_backlash_deg": 0.0})
+    env.reset(seed=0)
+    env.data.qpos[:] = 0.0
+    env.data.qvel[:] = 0.0
+    obs = None
+    for _ in range(int(2.0 * env.p.control_hz)):     # 2 s
+        obs, _, term, _, info = env.step([0.0])
+        if term:
+            break
+    true_pitch = info["true_state"][0]
+    meas_pitch = obs[0] / OBS_SCALE[0]
+    drift_deg = math.degrees(meas_pitch - true_pitch)
+    assert 1.5 < drift_deg < 2.5, (
+        f"after 2 s at 1 deg/s bias, measured pitch should lead truth by ~2 "
+        f"deg, got {drift_deg:.2f}")
