@@ -210,7 +210,13 @@ def main() -> None:
         "Q12 is the largest scale that keeps every intermediate under 2^30;\n"
         "past that MicroPython promotes to arbitrary precision and the whole\n"
         "point is lost. Headroom is checked at generation time.\n"
-        '"""\n' + src12i.replace("fast_q12i", "act") + "\n")
+        '"""\n' + src12i.replace("fast_q12i", "act") + "\n\n\n"
+        '# Uploading this module by itself does nothing — it only defines\n'
+        '# act(). Tell the operator instead of sitting silent:\n'
+        'if __name__ == "__main__":\n'
+        f'    print("{out_name} is a MODULE (network weights + act()).")\n'
+        '    print("run robot/balance_policy.py or robot/play.py instead;")\n'
+        '    print("robot/README.md says which policy module is current.")\n')
     print(f"wrote {mod} ({mod.stat().st_size} bytes)")
 
     # One benchmark per source, so quantising the pipeline-control weights

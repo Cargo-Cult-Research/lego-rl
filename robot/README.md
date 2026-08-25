@@ -21,7 +21,7 @@ Run anything with: `scripts/run_on_hub.sh robot/<file>.py`
 | `balance_classical.py` | the classical four-gain balancer | baseline, sanity |
 | `balance_policy.py` | run a policy module (imports `policy_fast`) | deploy a policy |
 | `benchmark.py` | classical law, fixed 10 s window, fixed statistics | comparing builds |
-| `play.py` | balance forever, re-arm after falls | poking the robot |
+| `play.py` | balance forever on the DEPLOYED policy, re-arm after falls | poking the robot |
 | `sysid_*.py`, `ring_test.py` | measurement tools feeding `src/lego_rl/params.py` — each docstring says which parameter it measures | when a GUESS needs burning down |
 
 Multi-condition crossover sessions (several controllers per battery) are

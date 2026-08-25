@@ -319,8 +319,8 @@ def run_entry(run: dict, open_by_default: bool = False) -> str:
       <span class="rundate">{html.escape(meta.get('date', ''))}</span>
     </div>
     <h3>{html.escape(meta['title'])}</h3>
-    <p class="headline">{html.escape(meta.get('headline', ''))}</p>
   </summary>
+  <p class="headline">{html.escape(meta.get('headline', ''))}</p>
   <p class="question"><em>{html.escape(meta.get('question', ''))}</em></p>
   {md_to_html(run['notes'])}
   {run_charts(run)}

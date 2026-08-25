@@ -5,7 +5,7 @@
   "script": "robot/sysid_latency.py",
   "question": "With the robot standing, where does the 15-22 ms actually live \u2014 mechanics or sensing?",
   "verdict": "guilty",
-  "headline": "Gyro response 16-31 ms (median ~19) vs encoder motion 18-23 ms: the two nearly coincide, so stiction/backlash takeup is only ~3 ms and the bundle is dominated by the SENSING pipeline \u2014 angular_velocity() is ~15 ms stale before our 30 ms filter. Total hardware dead time ~20 ms matches what the sim already models, so unmodeled lag is NOT the sim's fragility; static friction and stall_torque move to the top. And run 30's result deepens: the robot balances with ~105 ms of total rate-channel lag.",
+  "headline": "Gyro response median ~19 ms vs encoder 18-23 ms: mechanics is only ~3 ms of the bundle. First read blamed the sensing pipeline; the firmware source overruled it same-day (833 Hz ODR, per-frame updates, ~1.2 ms fresh) \u2014 the shared ~15 ms sits in the command->torque path. Sim's modeled dead time (~20 ms) remains correct either way.",
   "series": [],
   "hub_output": [
     "1000 ticks, worst period ms: 6",

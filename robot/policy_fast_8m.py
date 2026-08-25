@@ -166,3 +166,11 @@ def act(state):
     if u > 4096:
         return 1.0
     return u * 0.000244140625
+
+
+# Uploading this module by itself does nothing — it only defines
+# act(). Tell the operator instead of sitting silent:
+if __name__ == "__main__":
+    print("policy_fast_8m.py is a MODULE (network weights + act()).")
+    print("run robot/balance_policy.py or robot/play.py instead;")
+    print("robot/README.md says which policy module is current.")

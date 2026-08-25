@@ -34,3 +34,24 @@ evidently carries a similar reporting lag).
   driver-side averaging is checkable in the Pybricks source and possibly
   configurable; (2) the 5 ms control tick (0–5 ms quantization); (3)
   mechanics — barely worth touching at ~3 ms.
+
+## Addendum (same day): the firmware says the gyro is NOT the slow part
+
+Reading Pybricks 3.6.1's source (`lib/pbio/drv/imu/imu_lsm6ds3tr_c_stm32.c`,
+`lib/pbio/src/imu.c`): the LSM6DS3TR-C runs at **833 Hz ODR** for both gyro
+and accelerometer, and `angular_velocity_calibrated` is updated per frame —
+the value `angular_velocity()` returns is ~1.2 ms fresh, with only bias/scale
+applied on read. `imu.settings()` exposes thresholds and calibration only;
+there is no rate or bandwidth knob, and nothing to slow it down.
+
+So the headline above needs correcting: the ~15–19 ms that parts 2 and 3
+SHARE cannot be sensing — it sits in the **command→torque path**
+(`dc()` → pbio → PWM → electrical rise), possibly padded by the fingertip
+steadying damping the initial kick (per-trial spread 16–31 ms supports some
+of that). The gyro and encoder each add only a couple of ms on top.
+
+Revised split: command→torque ≈ 15 ms (mechanism inside Pybricks/driver
+unidentified — next firmware dive), mechanics ≈ 3 ms, sensing ≈ 1–2 ms.
+The sim conclusion is unchanged: total dead time ~20 ms, already modeled.
+The latency lever moves from "IMU pipeline" to "why does a duty command
+take 15 ms to become torque" — a pbio/dcmotor question, not a sensor one.
