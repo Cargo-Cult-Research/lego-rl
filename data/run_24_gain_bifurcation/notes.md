@@ -62,6 +62,31 @@ flagged (ratio 0.35) and training on the pre-contact-fix sim.
 Videos: `gain_100.mp4` vs `gain_111.mp4`, same seed, same plant — the ×1.11
 robot's wheel-rattle is visible to the eye.
 
+## Addendum: the boundary, mapped (same day)
+
+Sweeping the gain scale (8 nominal episodes per point, arm transient
+dropped):
+
+| scale | σ (deg) | duty p90 | >50% duty |
+|---|---|---|---|
+| 0.90 | 0.72 | 14.2% | 0.0% |
+| 0.95 | 0.66 | 14.2% | 0.0% |
+| 1.00 | 0.61 | 14.0% | 0.0% |
+| 1.03 | 0.97 | 20.3% | 5.6% |
+| 1.06 | 1.01 | 23.6% | 6.1% |
+| 1.09 | 1.45 | 66.3% | 12.6% |
+| 1.12 | 1.46 | 68.5% | 13.2% |
+| 1.15 | 1.48 | 71.8% | 14.3% |
+
+The transition starts at **×1.03** and saturates by **×1.09** — the current
+gains sit only **3–6% below the ignition boundary** (in the nominal-parameter
+sim; the margin on hardware will differ but the sharpness is the point). That
+is thin against known variation: battery compensation error, gearbox
+temperature, and the ~2× unit spread measured between the two motors
+(run 17). It reframes the chatter question: the residual is not cosmetic
+noise, it is proximity to a bifurcation, and margin — not amplitude — is the
+number to engineer.
+
 **Still to do on hardware:** rerun the crossover with the regenerated
 `policy_linear_fast.py` — direct and through-pipeline should now be
 statistically indistinguishable, which validates the fix and retires the
