@@ -61,17 +61,11 @@ SEG_MS = 6000        # per condition
 SETTLE_MS = 1200     # discarded at the start of each segment
 CYCLES = 7           # 7 x 3 conditions x 6 s = about 2 minutes
 
-# kind: 0 = classical gains computed directly
-#       1 = the SAME law cast into the net and quantised (pipeline control)
-#       2 = the learned policy
-#
-# Condition 1 is the point. Every previous hardware comparison confounded "the
-# learned policy is worse" with "the export/fixed-point/hub pipeline degrades
-# whatever passes through it". A network that IS the classical controller
-# travels the identical pipeline while implementing a law already measured at
-# 1.5-3.3 deg RMS, so 0 vs 1 isolates the pipeline and 1 vs 2 isolates the
-# policy. In sim they are indistinguishable (10.00s/100% both, 0.88 vs 0.69
-# deg RMS); this asks the same question on hardware.
+# kind 0 is always the classical law computed directly. Kinds 1 and 2 are
+# whatever net modules the generator inlined -- THE PRINTED "kinds:" LINE AT
+# STARTUP IS THE AUTHORITATIVE COLOR/MODULE MAPPING for this build (it lands
+# in every log, so a session is self-describing). Run 27 happened because a
+# human went by remembered colors across two different builds.
 KINDS = (0, 1, 2)
 COLORS = (Color.GREEN, Color.YELLOW, Color.CYAN)
 ALPHA = DT / (RATE_TAU_MS + DT)
@@ -228,6 +222,16 @@ print("END")
 '''
 
 
+INLINE_NOTE = """
+# NOTE: the policy modules below are INLINED (copy-pasted) from robot/, not
+# imported, for two reasons: (a) every policy module defines act() and
+# LUT_act, so two of them cannot be imported side by side without renaming;
+# (b) the uploaded program is a lab-book record, and inlining freezes exactly
+# what ran. The source of truth stays robot/<module>.py -- regenerate with
+# make_ab_cycle.py rather than editing here.
+"""
+
+
 def main() -> None:
     import argparse
     import sys
@@ -267,11 +271,16 @@ def main() -> None:
                 duty = act([pitch * DEG2RAD, rate_f * DEG2RAD,
                             angle * DEG2RAD, speed * DEG2RAD]) * 100
 """, "")
-        pol = (f"\n# ---- kind 1: {args.kind1} (Q12) ----\n"
+        pol = (f'\nprint("kinds: 0 GREEN classical | 1 YELLOW {args.kind1}")\n'
+               + INLINE_NOTE
+               + f"\n# ---- kind 1: {args.kind1} (Q12) ----\n"
                + linear + "# ---- end policy ----\n")
     else:
         learned = grab(args.kind2, "act")
-        pol = (f"\n# ---- kind 2: {args.kind2} (Q12) ----\n" + learned
+        pol = (f'\nprint("kinds: 0 GREEN classical | 1 YELLOW {args.kind1} '
+               f'| 2 CYAN {args.kind2}")\n'
+               + INLINE_NOTE
+               + f"\n# ---- kind 2: {args.kind2} (Q12) ----\n" + learned
                + f"\n# ---- kind 1: {args.kind1} (Q12) ----\n"
                + linear + "# ---- end policies ----\n")
     out = ROOT / "experimental" / "ab" / "_ab_cycle.py"

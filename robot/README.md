@@ -35,7 +35,7 @@ Float sources live in `policies/`; only these quantised forms run on the hub.
 | file | source | status |
 |---|---|---|
 | `policy_fast.py` | `runs/ppo_balance_seed0` (trained pre-sim-fixes) | **DEPLOYED** — the policy runs 13–26 measured |
-| `policy_fast_8m.py` | `runs/ppo_fixedplant_8m_seed1` (trained on the fixed plant: contact fix + backlash) | **CANDIDATE** — verifier: position gain 2× the deployed; sim drift 1–3 cm vs 25–37. Hardware: run 27 |
+| `policy_fast_8m.py` | `runs/ppo_fixedplant_8m_seed1` (trained on the fixed plant: contact fix + backlash) | **DID NOT TRANSFER** (run 27: hot duty, classical quieter 7/7, despite being the best sim policy ever) — kept as the sim-real-gap probe |
 | `policy_linear_fast.py` | the classical law via `linear_to_net.py` | **CONTROL** — not a policy; exists to test the export pipeline itself (runs 22, 24, 26) |
 
 When a candidate wins on hardware, it becomes `policy_fast.py` (one `git mv`

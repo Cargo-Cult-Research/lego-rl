@@ -28,17 +28,11 @@ SEG_MS = 6000        # per condition
 SETTLE_MS = 1200     # discarded at the start of each segment
 CYCLES = 7           # 7 x 3 conditions x 6 s = about 2 minutes
 
-# kind: 0 = classical gains computed directly
-#       1 = the SAME law cast into the net and quantised (pipeline control)
-#       2 = the learned policy
-#
-# Condition 1 is the point. Every previous hardware comparison confounded "the
-# learned policy is worse" with "the export/fixed-point/hub pipeline degrades
-# whatever passes through it". A network that IS the classical controller
-# travels the identical pipeline while implementing a law already measured at
-# 1.5-3.3 deg RMS, so 0 vs 1 isolates the pipeline and 1 vs 2 isolates the
-# policy. In sim they are indistinguishable (10.00s/100% both, 0.88 vs 0.69
-# deg RMS); this asks the same question on hardware.
+# kind 0 is always the classical law computed directly. Kinds 1 and 2 are
+# whatever net modules the generator inlined -- THE PRINTED "kinds:" LINE AT
+# STARTUP IS THE AUTHORITATIVE COLOR/MODULE MAPPING for this build (it lands
+# in every log, so a session is self-describing). Run 27 happened because a
+# human went by remembered colors across two different builds.
 KINDS = (0, 1, 2)
 COLORS = (Color.GREEN, Color.YELLOW, Color.CYAN)
 ALPHA = DT / (RATE_TAU_MS + DT)
@@ -55,6 +49,15 @@ print("battery mV:", hub.battery.voltage())
 #   sigma = RMS about the segment mean = the oscillation, drift-immune
 print("seg,cycle,kind,battery_mV,rms_x100,mean_x100,sigma_x100,peak_x10,"
       "clamp_pct,dmax,wheel,fell,rate_hz")
+
+print("kinds: 0 GREEN classical | 1 YELLOW policy_fast.py | 2 CYAN policy_fast_8m.py")
+
+# NOTE: the policy modules below are INLINED (copy-pasted) from robot/, not
+# imported, for two reasons: (a) every policy module defines act() and
+# LUT_act, so two of them cannot be imported side by side without renaming;
+# (b) the uploaded program is a lab-book record, and inlining freezes exactly
+# what ran. The source of truth stays robot/<module>.py -- regenerate with
+# make_ab_cycle.py rather than editing here.
 
 # ---- kind 2: policy_fast_8m.py (Q12) ----
 LUT_act = [-4093, -4093, -4093, -4093, -4093, -4093, -4093, -4093, -4092, -4092, -4092, -4092, -4092, -4092, -4092, -4092, -4091, -4091, -4091, -4091, -4091, -4091, -4091, -4090, -4090, -4090, -4090, -4090, -4089, -4089, -4089, -4089, -4089, -4088, -4088, -4088, -4088, -4087, -4087, -4087, -4086, -4086, -4086, -4085, -4085, -4085, -4084, -4084, -4084, -4083, -4083, -4082, -4082, -4082, -4081, -4081, -4080, -4080, -4079, -4079, -4078, -4078, -4077, -4076, -4076, -4075, -4074, -4074, -4073, -4072, -4072, -4071, -4070, -4069, -4068, -4067, -4067, -4066, -4065, -4064, -4063, -4062, -4061, -4059, -4058, -4057, -4056, -4055, -4053, -4052, -4050, -4049, -4048, -4046, -4044, -4043, -4041, -4039, -4038, -4036, -4034, -4032, -4030, -4028, -4026, -4024, -4021, -4019, -4016, -4014, -4011, -4009, -4006, -4003, -4000, -3997, -3994, -3991, -3988, -3984, -3981, -3977, -3973, -3970, -3966, -3962, -3957, -3953, -3949, -3944, -3939, -3934, -3929, -3924, -3919, -3913, -3908, -3902, -3896, -3890, -3883, -3877, -3870, -3863, -3856, -3848, -3841, -3833, -3825, -3817, -3808, -3799, -3790, -3781, -3771, -3761, -3751, -3741, -3730, -3719, -3707, -3696, -3684, -3671, -3659, -3645, -3632, -3618, -3604, -3589, -3574, -3559, -3543, -3526, -3510, -3492, -3475, -3456, -3438, -3419, -3399, -3379, -3358, -3337, -3315, -3293, -3270, -3246, -3222, -3197, -3172, -3146, -3119, -3092, -3064, -3036, -3007, -2977, -2946, -2915, -2883, -2851, -2817, -2783, -2748, -2713, -2676, -2639, -2602, -2563, -2524, -2484, -2443, -2401, -2359, -2316, -2272, -2227, -2181, -2135, -2088, -2041, -1992, -1943, -1893, -1842, -1791, -1739, -1686, -1632, -1578, -1523, -1468, -1412, -1355, -1298, -1240, -1181, -1123, -1063, -1003, -943, -882, -821, -759, -697, -635, -572, -509, -446, -383, -319, -256, -192, -128, -64, 0, 64, 128, 192, 256, 319, 383, 446, 509, 572, 635, 697, 759, 821, 882, 943, 1003, 1063, 1123, 1181, 1240, 1298, 1355, 1412, 1468, 1523, 1578, 1632, 1686, 1739, 1791, 1842, 1893, 1943, 1992, 2041, 2088, 2135, 2181, 2227, 2272, 2316, 2359, 2401, 2443, 2484, 2524, 2563, 2602, 2639, 2676, 2713, 2748, 2783, 2817, 2851, 2883, 2915, 2946, 2977, 3007, 3036, 3064, 3092, 3119, 3146, 3172, 3197, 3222, 3246, 3270, 3293, 3315, 3337, 3358, 3379, 3399, 3419, 3438, 3456, 3475, 3492, 3510, 3526, 3543, 3559, 3574, 3589, 3604, 3618, 3632, 3645, 3659, 3671, 3684, 3696, 3707, 3719, 3730, 3741, 3751, 3761, 3771, 3781, 3790, 3799, 3808, 3817, 3825, 3833, 3841, 3848, 3856, 3863, 3870, 3877, 3883, 3890, 3896, 3902, 3908, 3913, 3919, 3924, 3929, 3934, 3939, 3944, 3949, 3953, 3957, 3962, 3966, 3970, 3973, 3977, 3981, 3984, 3988, 3991, 3994, 3997, 4000, 4003, 4006, 4009, 4011, 4014, 4016, 4019, 4021, 4024, 4026, 4028, 4030, 4032, 4034, 4036, 4038, 4039, 4041, 4043, 4044, 4046, 4048, 4049, 4050, 4052, 4053, 4055, 4056, 4057, 4058, 4059, 4061, 4062, 4063, 4064, 4065, 4066, 4067, 4067, 4068, 4069, 4070, 4071, 4072, 4072, 4073, 4074, 4074, 4075, 4076, 4076, 4077, 4078, 4078, 4079, 4079, 4080, 4080, 4081, 4081, 4082, 4082, 4082, 4083, 4083, 4084, 4084, 4084, 4085, 4085, 4085, 4086, 4086, 4086, 4087, 4087, 4087, 4088, 4088, 4088, 4088, 4089, 4089, 4089, 4089, 4089, 4090, 4090, 4090, 4090, 4090, 4091, 4091, 4091, 4091, 4091, 4091, 4091, 4092, 4092, 4092, 4092, 4092, 4092, 4092, 4092, 4093, 4093, 4093, 4093, 4093, 4093, 4093, 4093]
