@@ -1,0 +1,17 @@
+{
+  "n": 21,
+  "title": "Sigma-instrumented ABBA — two failed starts",
+  "date": "2026-08-24",
+  "script": "experimental/ab/_ab_cycle.py",
+  "question": "Same as run 22 — these were its false starts.",
+  "verdict": "void",
+  "headline": "One upload that never went through, one run stopped by hand at segment 14/20: no verdict from a partial crossover, but the sigma column already behaves as designed (flat under drift) and clamp_pct is 0 at MAX_DUTY=100.",
+  "series": [],
+  "hub_output": [
+    "-- retro-filed 2026-08-24 from raw_upload_failed.log + raw_stopped.log --",
+    "attempt 1: UPLOAD_FAILED_ALL_ATTEMPTS, zero telemetry",
+    "attempt 2: battery mV: 8088, 15/20 segments, stopped (SystemExit)",
+    "seg,cycle,kind,battery_mV,rms_x100,mean_x100,sigma_x100,peak_x10,clamp_pct,dmax,wheel,fell,rate_hz",
+    "full logs on disk in this directory"
+  ]
+}

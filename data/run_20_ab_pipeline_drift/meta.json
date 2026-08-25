@@ -1,0 +1,18 @@
+{
+  "n": 20,
+  "title": "Pipeline crossover — retracted: the rms statistic was measuring drift",
+  "date": "2026-08-23",
+  "script": "experimental/ab/_ab_cycle.py",
+  "question": "Does the export pipeline degrade the classical law that passes through it?",
+  "verdict": "inconclusive",
+  "headline": "The 10/10 (p=0.002) result is retracted: rms about the arm-time reference tracked wheel angle at r=0.999 — it measured gyro-bias drift, not oscillation. What this run convicted was its own statistic; the fixed protocol is run 22.",
+  "series": [],
+  "hub_output": [
+    "-- retro-filed 2026-08-24 from raw_3way.log + raw_abba.log in this directory --",
+    "session 1 (3-way, 7 cycles): battery mV: 8276",
+    "session 2 (ABBA source of the retracted result): battery mV: 8214",
+    "seg,cycle,kind,battery_mV,rms_x100,peak_x10,clamp_pct,wheel,fell,rate_hz",
+    "final segments show the drift signature: rms 121 -> 2410 while wheel 5 -> 618,",
+    "monotone in time, indifferent to which controller ran. Full logs on disk."
+  ]
+}

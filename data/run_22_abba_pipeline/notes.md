@@ -1,7 +1,7 @@
 # Run 22 — ABBA crossover, classical direct vs the SAME law through the export pipeline
 
 2026-08-24. Hardware, one continuous 120 s balance, 20 segments, **zero falls**,
-200 Hz held throughout. Program: `robot/_ab_cycle.py` built with `--pipeline`
+200 Hz held throughout. Program: `experimental/ab/_ab_cycle.py` built with `--pipeline`
 (KINDS = (0, 1); the learned policy is not in this build).
 
 - kind 0 = classical gains evaluated directly on the hub

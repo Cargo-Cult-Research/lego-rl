@@ -1,0 +1,553 @@
+--- attempt 1 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 2 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 3 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 4 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 5 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 6 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 7 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 8 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 9 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 10 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 11 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 12 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 13 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 14 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 15 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 16 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 17 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 18 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 19 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 20 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 21 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 22 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 23 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+--- attempt 24 ---
+Searching for any hub with Pybricks service...
+Traceback (most recent call last):
+  File "/Users/token/code/lego-rl/.venv/bin/pybricksdev", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 194, in run
+    device_or_address = await find_ble(args.name)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/token/code/lego-rl/.venv/lib/python3.12/site-packages/pybricksdev/ble/__init__.py", line 67, in find_device
+    raise asyncio.TimeoutError
+TimeoutError
+UPLOAD_FAILED_ALL_ATTEMPTS
