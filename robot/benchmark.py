@@ -46,7 +46,7 @@ alpha = DT / (RATE_TAU_MS + DT)
 watch = StopWatch()
 t0 = watch.time()
 n = 0
-rate_f = 0.0
+rate_filt = 0.0
 fell_at = -1
 sum_sq = 0.0
 sum_p = 0.0
@@ -54,18 +54,18 @@ peak = 0.0
 
 while watch.time() - t0 < BENCH_MS:
     pitch = hub.imu.rotation(PITCH_AXIS) - pitch0
-    rate_f += alpha * (hub.imu.angular_velocity(PITCH_AXIS) - rate_f)
+    rate_filt += alpha * (hub.imu.angular_velocity(PITCH_AXIS) - rate_filt)
     if abs(pitch) > FALL_DEG:
         fell_at = watch.time() - t0
         break
-    la = left.angle()
-    ra = right.angle()
+    left_deg = left.angle()
+    right_deg = right.angle()
     speed = (left.speed() + right.speed()) / 2
-    duty = (K_ANGLE * pitch + K_RATE * rate_f
-            + K_MOTOR * (la + ra) / 2 + K_SPEED * speed)
+    duty = (K_ANGLE * pitch + K_RATE * rate_filt
+            + K_MOTOR * (left_deg + right_deg) / 2 + K_SPEED * speed)
     duty = max(-MAX_DUTY, min(MAX_DUTY, duty))
     scale = V_NOM / hub.battery.voltage()
-    sync = K_SYNC * (la - ra)
+    sync = K_SYNC * (left_deg - right_deg)
     left.dc(scale * (duty - sync))
     right.dc(scale * (duty + sync))
     sum_sq += pitch * pitch
@@ -75,7 +75,7 @@ while watch.time() - t0 < BENCH_MS:
     if n % LOG_EVERY == 0 and w < N_LOG:
         p_buf[w] = int(pitch * 10)
         d_buf[w] = int(duty)
-        w_buf[w] = int((la + ra) / 2)
+        w_buf[w] = int((left_deg + right_deg) / 2)
         w += 1
     n += 1
     wait(max(0, t0 + DT * n - watch.time()))

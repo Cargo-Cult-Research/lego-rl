@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WEIGHTS = ROOT / "robot" / "policy_weights.py"
+WEIGHTS = ROOT / "policies" / "policy_weights.py"
 OUT = ROOT / "robot" / "_bench_inference.py"
 
 Q = 10          # fixed-point fraction bits

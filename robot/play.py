@@ -86,7 +86,7 @@ while True:
 
     bias = 0.0          # deg/s, estimated gyro zero-rate error
     pitch = 0.0         # integrated here, so bias can be removed before it
-    rate_f = 0.0
+    rate_filt = 0.0
     t0 = watch.time()
     n = 0
     win_n = 0
@@ -98,18 +98,18 @@ while True:
     while True:
         rate_raw = hub.imu.angular_velocity(PITCH_AXIS)
         pitch += (rate_raw - bias) * DT / 1000.0
-        rate_f += alpha * (rate_raw - rate_f)
+        rate_filt += alpha * (rate_raw - rate_filt)
         if abs(pitch) > FALL_DEG:
             break
-        la = left.angle()
-        ra = right.angle()
-        angle = (la + ra) / 2
+        left_deg = left.angle()
+        right_deg = right.angle()
+        angle = (left_deg + right_deg) / 2
         speed = (left.speed() + right.speed()) / 2
-        duty = (K_ANGLE * pitch + K_RATE * rate_f
+        duty = (K_ANGLE * pitch + K_RATE * rate_filt
                 + K_MOTOR * angle + K_SPEED * speed)
         duty = max(-MAX_DUTY, min(MAX_DUTY, duty))
         scale = V_NOM / hub.battery.voltage()
-        sync = K_SYNC * (la - ra)
+        sync = K_SYNC * (left_deg - right_deg)
         left.dc(scale * (duty - sync))
         right.dc(scale * (duty + sync))
 

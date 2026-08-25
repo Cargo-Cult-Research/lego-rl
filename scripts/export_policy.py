@@ -22,7 +22,7 @@ def fmt(a):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("model_path")
-    ap.add_argument("--out", default="robot/policy_weights.py")
+    ap.add_argument("--out", default="policies/policy_weights.py")
     args = ap.parse_args()
 
     model = PPO.load(args.model_path, device="cpu")

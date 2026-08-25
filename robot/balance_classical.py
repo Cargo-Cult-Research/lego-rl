@@ -53,10 +53,10 @@ n = 0
 peak_duty = 0
 peak_pitch = 0
 sum_sq = 0.0
-rate_f = 0.0
+rate_filt = 0.0
 while True:
     pitch = hub.imu.rotation(PITCH_AXIS) - pitch0
-    rate_f += alpha * (hub.imu.angular_velocity(PITCH_AXIS) - rate_f)
+    rate_filt += alpha * (hub.imu.angular_velocity(PITCH_AXIS) - rate_filt)
     if abs(pitch) > FALL_DEG:
         left.dc(0)
         right.dc(0)
@@ -66,7 +66,7 @@ while True:
     angle = (left.angle() + right.angle()) / 2
     speed = (left.speed() + right.speed()) / 2
     duty = (K_ANGLE * pitch
-            + K_RATE * rate_f
+            + K_RATE * rate_filt
             + K_MOTOR * angle
             + K_SPEED * speed)
     duty = max(-MAX_DUTY, min(MAX_DUTY, duty))

@@ -59,7 +59,7 @@ def main() -> int:
                     help="Pybricks-unit gains: duty%% per deg or deg/s "
                          "(default: robot/gains.py)")
     ap.add_argument("--steps", type=int, default=6000)
-    ap.add_argument("--out", default="robot/policy_linear_weights.py")
+    ap.add_argument("--out", default="policies/policy_linear_weights.py")
     args = ap.parse_args()
 
     k_si = pybricks_to_si(np.array(args.gains))     # duty per rad, rad/s

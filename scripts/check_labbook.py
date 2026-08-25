@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Where prose and code may cite runs. Generated policy files excluded.
 CITATION_GLOBS = ("robot/*.py", "scripts/*.py", "experimental/**/*.py",
-                  "src/lego_rl/*.py", "tests/*.py", "README.md", "CLAUDE.md",
+                  "src/lego_rl/*.py", "tests/*.py", "README.md", "CLAUDE.md", "docs/*.md",
                   "data/*/notes.md")
 CITE = re.compile(r"\bruns?[ _](\d{1,2}(?:\s*,\s*\d{1,2})*(?:\s*(?:and|&)\s*\d{1,2})?)\b",
                   re.IGNORECASE)
