@@ -31,14 +31,13 @@ the wheel itself does the talking:
 
 Timings are deliberately slow. A rushed grip is a wasted run.
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
-from pybricks.tools import StopWatch, wait
+from pybricks.parameters import Color
+from pybricks.tools import wait
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
-left = Motor(Port.A, Direction.COUNTERCLOCKWISE)
-right = Motor(Port.B, Direction.CLOCKWISE)
+from hubconfig import make_hub, make_motors
+
+hub = make_hub()
+left, right = make_motors()
 
 DUTIES = (20, 30, 45)     # %, clear of the measured ~10% dead zone. 15% was
                           # too close to it -- the motor can stall short of the

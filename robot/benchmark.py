@@ -1,35 +1,25 @@
 """One config, one fixed window, numbers comparable across builds.
 
 The sweeps answered "which setting", but comparing across a mechanical change
-needs a fixed measurement: same gains, same duration, same statistics. This is
-the best configuration found over eleven runs, held for BENCH_MS.
+needs a fixed measurement: same gains, same duration, same statistics. The
+configuration comes from hubconfig.py / gains.py, held for BENCH_MS.
 
-Baseline to beat (2026-08-22, 410 g unbraced, run 9 segment 1):
-    pitch RMS 2.24 deg, peak 7.3 deg, ring ~10.6 Hz
-
-If bracing the structure removes the ring, mechanical compliance was the cause
-and the airborne tap test simply could not see it -- the tyres were unloaded,
-so the one spring actually inside the control loop was never excited.
+Statistics printed: rms (about the arm-time reference — contaminated by gyro
+bias drift over long windows, see run 20), sigma (rms about the window mean —
+drift-immune), peak, and the duty distribution.
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Color
 from pybricks.tools import StopWatch, wait
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
-left = Motor(Port.A, Direction.COUNTERCLOCKWISE)
-right = Motor(Port.B, Direction.CLOCKWISE)
-PITCH_AXIS = -Axis.Y
+from gains import GAINS_SIM_TUNED, K_SYNC
+from hubconfig import (DT, FALL_DEG, MAX_DUTY, PITCH_AXIS, RATE_TAU_MS, V_NOM,
+                       make_hub, make_motors, wait_until_upright)
 
-K_ANGLE, K_RATE, K_MOTOR, K_SPEED = 10.71, 0.87, 0.43, 0.30
-RATE_TAU_MS = 30
-MAX_DUTY = 40
-K_SYNC = 0
-FRICTION_COMP = 0
+hub = make_hub()
+left, right = make_motors()
 
-DT = 5
-V_NOM = 7400
-FALL_DEG = 45
+K_ANGLE, K_RATE, K_MOTOR, K_SPEED = GAINS_SIM_TUNED
+
 BENCH_MS = 10000
 LOG_EVERY = 4       # -> 50 Hz
 
@@ -44,12 +34,7 @@ print("gains:", K_ANGLE, K_RATE, K_MOTOR, K_SPEED,
       "tau:", RATE_TAU_MS, "max:", MAX_DUTY)
 
 hub.light.on(Color.RED)
-still = 0
-while still < 50:
-    ok = (hub.imu.acceleration(Axis.Z) > 8000
-          and abs(hub.imu.angular_velocity(PITCH_AXIS)) < 2)
-    still = still + 1 if ok else 0
-    wait(10)
+wait_until_upright(hub)
 
 hub.imu.reset_heading(0)
 pitch0 = hub.imu.rotation(PITCH_AXIS)
@@ -64,6 +49,7 @@ n = 0
 rate_f = 0.0
 fell_at = -1
 sum_sq = 0.0
+sum_p = 0.0
 peak = 0.0
 
 while watch.time() - t0 < BENCH_MS:
@@ -83,6 +69,7 @@ while watch.time() - t0 < BENCH_MS:
     left.dc(scale * (duty - sync))
     right.dc(scale * (duty + sync))
     sum_sq += pitch * pitch
+    sum_p += pitch
     if abs(pitch) > peak:
         peak = abs(pitch)
     if n % LOG_EVERY == 0 and w < N_LOG:
@@ -101,7 +88,10 @@ elapsed = watch.time() - t0
 print("fell_at_ms:", fell_at, "elapsed:", elapsed, "steps:", n)
 print("rate:", (1000 * n // elapsed) if elapsed else 0, "Hz (want ~200)")
 if n:
+    mean = sum_p / n
+    var = sum_sq / n - mean * mean
     print("pitch_rms_x100:", int(100 * (sum_sq / n) ** 0.5),
+          "sigma_x100:", int(100 * (var if var > 0 else 0.0) ** 0.5),
           "peak_x10:", int(10 * peak))
 print("t_ms,seg,pitch_x10,duty,wheel_mean")
 for i in range(w):

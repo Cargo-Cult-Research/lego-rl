@@ -27,9 +27,10 @@ from stable_baselines3 import PPO
 
 from lego_rl.classical import PYBRICKS_GAINS, si_to_pybricks
 from lego_rl.env import OBS_SCALE
+from lego_rl.gains import GAINS_SIM_TUNED
 
 NAMES = ["pitch", "pitch_rate", "wheel", "wheel_rate"]
-SIM_TUNED = np.array([10.71, 0.87, 0.43, 0.30])
+SIM_TUNED = np.array(GAINS_SIM_TUNED)  # single source: robot/gains.py
 
 
 def policy_jacobian(model, eps=1e-3):

@@ -28,22 +28,17 @@ Two things this needs that a 10 s run does not:
 LED: RED waiting for you to stand it up and hold still · GREEN live ·
 BLUE briefly on each fall.
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Axis, Color
 from pybricks.tools import StopWatch, wait
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
-left = Motor(Port.A, Direction.COUNTERCLOCKWISE)
-right = Motor(Port.B, Direction.CLOCKWISE)
-PITCH_AXIS = -Axis.Y
+from gains import GAINS_SIM_TUNED, K_SYNC
+from hubconfig import (DT, FALL_DEG, MAX_DUTY, PITCH_AXIS, RATE_TAU_MS, V_NOM,
+                       make_hub, make_motors, wait_until_upright)
 
-# The configuration M0 closed on. See README "Where it is right now".
-K_ANGLE, K_RATE, K_MOTOR, K_SPEED = 10.71, 0.87, 0.43, 0.30
-RATE_TAU_MS = 30
-MAX_DUTY = 40
-K_SYNC = 0
-FRICTION_COMP = 0
+hub = make_hub()
+left, right = make_motors()
+
+K_ANGLE, K_RATE, K_MOTOR, K_SPEED = GAINS_SIM_TUNED
 
 # Sustained wheel travel in one direction is the signature of a wrong pitch
 # zero, so it is the error signal for the bias estimate. Sized to converge on a
@@ -65,9 +60,6 @@ FRICTION_COMP = 0
 K_BIAS = 0.0        # deg/s of bias correction, per deg of wheel offset, per s
 BIAS_LIMIT = 3.0    # deg/s; far above the measured 0.56, far below anything sane
 BIAS_GATE_DEG = 20  # skip the update mid-fall, where wheel angle says nothing
-DT = 5
-V_NOM = 7400
-FALL_DEG = 45
 REPORT_MS = 5000
 
 print("battery mV:", hub.battery.voltage())
@@ -84,12 +76,7 @@ while True:
     left.dc(0)
     right.dc(0)
     hub.light.on(Color.RED)
-    still = 0
-    while still < 50:
-        ok = (hub.imu.acceleration(Axis.Z) > 8000
-              and abs(hub.imu.angular_velocity(PITCH_AXIS)) < 2)
-        still = still + 1 if ok else 0
-        wait(10)
+    wait_until_upright(hub)
 
     # No pitch0 read: pitch is integrated from zero at this instant, which the
     # RED phase has just guaranteed is upright and still.

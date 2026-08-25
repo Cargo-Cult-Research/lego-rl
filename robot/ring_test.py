@@ -33,15 +33,13 @@ the user had already performed:
    base, and the hub reports its achieved sample rate per segment, so a broken
    schedule announces itself instead of producing plausible garbage.
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Color
 from pybricks.tools import StopWatch, wait
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
-left = Motor(Port.A, Direction.COUNTERCLOCKWISE)
-right = Motor(Port.B, Direction.CLOCKWISE)
-PITCH_AXIS = -Axis.Y
+from hubconfig import PITCH_AXIS, make_hub, make_motors
+
+hub = make_hub()
+left, right = make_motors()
 
 DT = 5              # 200 Hz, so anything to 100 Hz is visible
 TAPS = 3

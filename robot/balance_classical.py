@@ -5,64 +5,21 @@ hold it still at its balance point. LED: RED = waiting for you to get it
 upright and still; GREEN = controller live, release gently. It stops and
 prints stats when pitch exceeds FALL_DEG.
 
-Gain sets in duty% per deg / deg/s on (pitch, rate, motor angle, motor speed):
-reference = published Pybricks balancer (tall heavy robot); sim_tuned = CEM
-in our measured-parameter sim (2026-08-22, held-out 10 s survival 100%).
+All configuration lives in hubconfig.py (build) and gains.py (control law) —
+edit there, never here, so every program agrees on the numbers.
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Color
 from pybricks.tools import StopWatch, wait
 from umath import copysign
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)  # sysid_directions 2026-08-22
-left = Motor(Port.A, Direction.COUNTERCLOCKWISE)  # probe: +CW rolled backward
-right = Motor(Port.B, Direction.CLOCKWISE)        # probe: +CW rolled forward
-PITCH_AXIS = -Axis.Y  # sign check 2026-08-22: +Y read toward-face tilt as negative
+from gains import FRICTION_COMP, GAINS_SIM_TUNED, K_SYNC
+from hubconfig import (DT, FALL_DEG, MAX_DUTY, PITCH_AXIS, RATE_TAU_MS, V_NOM,
+                       make_hub, make_motors, wait_until_upright)
 
-GAINS_REFERENCE = (88, 0.35, 0.72, 0.19)
-GAINS_SIM_TUNED = (10.71, 0.87, 0.43, 0.30)
-K_ANGLE, K_RATE, K_MOTOR, K_SPEED = GAINS_SIM_TUNED   # <-- pick the set here
+hub = make_hub()
+left, right = make_motors()
 
-# Everything below is measured, not assumed. See data/run_NN_*/ for each.
-RATE_TAU_MS = 30  # low-pass on the gyro term. Raw was the single biggest cause
-                  # of the original 14 Hz shake (run 1); sweeping down is worse
-                  # in both directions tested -- 15 ms and 0 ms both fell
-                  # (runs 9, 10).
-MAX_DUTY = 40     # PROVENANCE IS WEAK -- do not trust this number.
-                  #
-                  # It came from ONE 2.5 s segment of an early four-config
-                  # sweep, chosen for lowest pitch RMS (4.66 deg). But in that
-                  # same sweep it was SATURATING 70% of the time: it was never
-                  # a limit the controller stays under, it is a partially
-                  # bang-bang mode that won on one sample.
-                  #
-                  # Every condition it was chosen under has since changed. That
-                  # sweep ran on the UNBRACED robot with the friction
-                  # compensation still enabled and before the gyro filter was
-                  # settled. Bracing cut the ring 81% (run 12) and removing the
-                  # friction term halved the peak (run 8).
-                  #
-                  # The sweep predates the lab book, so there is no run
-                  # directory and no recorded raw data -- it exists only in a
-                  # chat transcript. An earlier version of this comment cited
-                  # "run 5", which is the yaw-loop experiment. Wrong.
-                  #
-                  # It is now load-bearing: run 20 found BOTH controllers
-                  # operating right at this limit (classical commands 43%,
-                  # the net 46%), which makes every comparison hypersensitive
-                  # to a 3% modelling difference. Needs a proper sweep on the
-                  # current robot.
-K_SYNC = 0        # yaw loop off. Proportional-only and undamped, but innocent:
-                  # switching it off changes the pitch ring not at all (run 5).
-FRICTION_COMP = 0  # the reference design adds +-10% duty in the direction of
-                  # travel. On a body this light that step is a bang-bang
-                  # oscillator (run 1); ramping it helped, and removing it
-                  # outright halved the peak excursion, 11.7 deg -> 6.6, with
-                  # drift still ~1 cm (run 8). Wrong compensation for this robot.
-DT = 5          # ms -> 200 Hz
-V_NOM = 7400    # mV
-FALL_DEG = 45
+K_ANGLE, K_RATE, K_MOTOR, K_SPEED = GAINS_SIM_TUNED
 
 print("battery mV:", hub.battery.voltage())
 print("gains:", K_ANGLE, K_RATE, K_MOTOR, K_SPEED,
@@ -81,14 +38,8 @@ def drive(duty, sync):
     right.dc(scale * r)
 
 
-# RED: wait until held upright (accel ~ +g on robot Z) and still for 0.5 s
 hub.light.on(Color.RED)
-still = 0
-while still < 50:
-    ok = (hub.imu.acceleration(Axis.Z) > 8000
-          and abs(hub.imu.angular_velocity(PITCH_AXIS)) < 2)
-    still = still + 1 if ok else 0
-    wait(10)
+wait_until_upright(hub)
 
 hub.imu.reset_heading(0)
 pitch0 = hub.imu.rotation(PITCH_AXIS)

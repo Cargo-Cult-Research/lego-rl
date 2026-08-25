@@ -8,15 +8,13 @@ And the wheels run a gentle catch-up: when tipped toward the face they must
 roll TOWARD the face (as if chasing the fall). If LED color or wheel
 direction contradicts what your hands are doing, we found the sign bug.
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Color
 from pybricks.tools import StopWatch, wait
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
-left = Motor(Port.A, Direction.COUNTERCLOCKWISE)
-right = Motor(Port.B, Direction.CLOCKWISE)
-PITCH_AXIS = -Axis.Y
+from hubconfig import PITCH_AXIS, make_hub, make_motors
+
+hub = make_hub()
+left, right = make_motors()
 
 wait(2000)                     # get it upright-ish
 hub.imu.reset_heading(0)

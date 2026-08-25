@@ -16,14 +16,13 @@ LED: ON steady  = holding phase, keep gripping both wheels
      OFF (4 s)  = rest, shake out your hands, re-grip
      RED        = finished
 """
-from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Color, Direction, Port
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Color
 from pybricks.tools import wait
 
-hub = TechnicHub(top_side=-Axis.X, front_side=-Axis.Z)
-motors = (Motor(Port.A, Direction.COUNTERCLOCKWISE),
-          Motor(Port.B, Direction.CLOCKWISE))
+from hubconfig import make_hub, make_motors
+
+hub = make_hub()
+motors = make_motors()
 
 TRIALS = 100
 REST_EVERY = 25

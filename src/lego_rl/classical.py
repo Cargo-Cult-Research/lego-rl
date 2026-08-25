@@ -10,9 +10,11 @@ import math
 import numpy as np
 
 from .env import OBS_SCALE
+from .gains import GAINS_REFERENCE
 
 # duty% per (deg, deg/s, deg, deg/s) on (pitch, pitch_rate, wheel, wheel_rate)
-PYBRICKS_GAINS = np.array([88.0, 0.35, 0.72, 0.19])
+# Single source: robot/gains.py (via lego_rl.gains).
+PYBRICKS_GAINS = np.array(GAINS_REFERENCE, dtype=float)
 
 
 def pybricks_to_si(g=PYBRICKS_GAINS):

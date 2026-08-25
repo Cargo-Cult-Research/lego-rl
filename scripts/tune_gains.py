@@ -2,7 +2,8 @@
 """Cross-entropy search over the four linear gains in the measured-param sim.
 The reference gains were tuned for a taller, heavier robot; this re-tunes the
 same controller structure for ours. Prints gains in Pybricks units (duty% per
-deg / deg/s) ready to paste into robot/balance_classical.py."""
+deg / deg/s) ready to paste into robot/gains.py — the SINGLE place they live;
+every controller and script reads them from there."""
 import argparse
 
 import numpy as np

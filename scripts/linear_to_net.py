@@ -31,6 +31,7 @@ from torch import nn
 
 from lego_rl.classical import pybricks_to_si
 from lego_rl.env import OBS_SCALE
+from lego_rl.gains import GAINS_SIM_TUNED
 
 ROOT = Path(__file__).resolve().parent.parent
 # The operating envelope, in SI. Deliberately wider than the robot's usual
@@ -54,8 +55,9 @@ class Net(nn.Module):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--gains", nargs=4, type=float,
-                    default=[10.71, 0.87, 0.43, 0.30],
-                    help="Pybricks-unit gains: duty%% per deg or deg/s")
+                    default=list(GAINS_SIM_TUNED),
+                    help="Pybricks-unit gains: duty%% per deg or deg/s "
+                         "(default: robot/gains.py)")
     ap.add_argument("--steps", type=int, default=6000)
     ap.add_argument("--out", default="robot/policy_linear_weights.py")
     args = ap.parse_args()
