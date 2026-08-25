@@ -15,7 +15,7 @@ Setup for part 3: stand the robot upright on the ground and steady it with
 two light fingertips; each trial gives a brief kick.
 """
 from pybricks.hubs import TechnicHub
-from pybricks.parameters import Axis, Port
+from pybricks.parameters import Axis, Color, Port
 from pybricks.pupdevices import Motor
 from pybricks.tools import StopWatch, wait
 
@@ -52,17 +52,24 @@ for trial in range(5):
     print("actuation latency ms:", watch.time())
 left.dc(0)
 
-# part 3: duty step -> first gyro response (sensing-chain latency)
+# part 3: duty step -> first gyro response (sensing-chain latency).
+# The operator is AT THE ROBOT, not at the terminal, so the LED carries the
+# protocol: RED = settle / get your fingertips on it, GREEN = armed, a kick
+# is imminent, BLUE = all trials done.
 print("part 3: stand the robot UP on the ground, steady it lightly. 6 trials.")
+print("LED: RED = settle | GREEN = armed, kick imminent | BLUE = done")
 wait(5000)
 for trial in range(6):
     left.dc(0)
     right.dc(0)
+    hub.light.on(Color.RED)
     wait(1500)                      # settle; fingertips steady the robot
     still = 0
     while still < 30:               # quiet gyro before we trust the trigger
         still = still + 1 if abs(hub.imu.angular_velocity(Axis.Y)) < 2 else 0
         wait(5)
+    hub.light.on(Color.GREEN)
+    wait(300)                       # a beat between armed and the kick
     watch.reset()
     left.dc(40)
     right.dc(40)
@@ -74,5 +81,6 @@ for trial in range(6):
     left.dc(0)
     right.dc(0)
     print("gyro response ms:", t_gyro)
+hub.light.on(Color.BLUE)
 print("part 3 done: gyro-response minus ~1 ms of body spin-up = sensing lag.")
 print("compare with part 2: encoder time - gyro time ~= stiction/backlash takeup")

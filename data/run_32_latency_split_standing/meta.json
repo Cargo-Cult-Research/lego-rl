@@ -1,0 +1,27 @@
+{
+  "n": 32,
+  "title": "Latency split, done right: the gyro is ~15 ms stale",
+  "date": "2026-08-24",
+  "script": "robot/sysid_latency.py",
+  "question": "With the robot standing, where does the 15-22 ms actually live \u2014 mechanics or sensing?",
+  "verdict": "guilty",
+  "headline": "Gyro response 16-31 ms (median ~19) vs encoder motion 18-23 ms: the two nearly coincide, so stiction/backlash takeup is only ~3 ms and the bundle is dominated by the SENSING pipeline \u2014 angular_velocity() is ~15 ms stale before our 30 ms filter. Total hardware dead time ~20 ms matches what the sim already models, so unmodeled lag is NOT the sim's fragility; static friction and stall_torque move to the top. And run 30's result deepens: the robot balances with ~105 ms of total rate-channel lag.",
+  "series": [],
+  "hub_output": [
+    "1000 ticks, worst period ms: 6",
+    "actuation latency ms: 22",
+    "actuation latency ms: 23",
+    "actuation latency ms: 18",
+    "actuation latency ms: 22",
+    "actuation latency ms: 19",
+    "part 3: stand the robot UP on the ground, steady it lightly. 6 trials.",
+    "gyro response ms: 23",
+    "gyro response ms: 16",
+    "gyro response ms: 19",
+    "gyro response ms: 18",
+    "gyro response ms: 31",
+    "gyro response ms: 19",
+    "part 3 done: gyro-response minus ~1 ms of body spin-up = sensing lag.",
+    "compare with part 2: encoder time - gyro time ~= stiction/backlash takeup"
+  ]
+}

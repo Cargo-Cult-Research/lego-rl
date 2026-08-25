@@ -299,7 +299,11 @@ def run_media(run: dict) -> str:
     return "\n".join(out)
 
 
-def run_entry(run: dict) -> str:
+def run_entry(run: dict, open_by_default: bool = False) -> str:
+    """One <article>, collapsed to head + title + headline by default —
+    32 fully-expanded runs made the page a scrolling exercise. The newest
+    run ships open; anchor links from the summary table open their target
+    via the small script in PAGE."""
     meta = run["meta"]
     label, colour = VERDICTS.get(meta.get("verdict", "open"), VERDICTS["open"])
     hub = "\n".join(html.escape(l) for l in meta.get("hub_output", []))
@@ -307,18 +311,22 @@ def run_entry(run: dict) -> str:
                  if hub else "")
     return f"""
 <article class="run" id="{html.escape(run['dir'])}">
-  <div class="runhead">
-    <span class="runno">run {meta.get('n', '?')}</span>
-    <span class="verdict" style="border-color:{colour};color:{colour}">{label}</span>
-    <span class="rundate">{html.escape(meta.get('date', ''))}</span>
-  </div>
-  <h3>{html.escape(meta['title'])}</h3>
+  <details class="rundetails"{" open" if open_by_default else ""}>
+  <summary>
+    <div class="runhead">
+      <span class="runno">run {meta.get('n', '?')}</span>
+      <span class="verdict" style="border-color:{colour};color:{colour}">{label}</span>
+      <span class="rundate">{html.escape(meta.get('date', ''))}</span>
+    </div>
+    <h3>{html.escape(meta['title'])}</h3>
+    <p class="headline">{html.escape(meta.get('headline', ''))}</p>
+  </summary>
   <p class="question"><em>{html.escape(meta.get('question', ''))}</em></p>
-  <p class="headline">{html.escape(meta.get('headline', ''))}</p>
   {md_to_html(run['notes'])}
   {run_charts(run)}
   {run_media(run)}
   {hub_block}
+  </details>
 </article>"""
 
 
@@ -339,8 +347,10 @@ def build(out_dir: Path) -> Path:
     runs = load_runs()
     print(f"  {len(runs)} runs")
 
+    newest = max(r["meta"]["n"] for r in runs) if runs else None
     html_out = PAGE.format(
-        labbook="\n".join(run_entry(r) for r in runs),
+        labbook="\n".join(run_entry(r, open_by_default=(r["meta"]["n"] == newest))
+                          for r in runs),
         summary=summary_table(runs),
     )
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -442,6 +452,15 @@ PAGE = """<!doctype html>
     background: rgba(0,0,0,.11); border: 1px solid var(--rule);
     border-radius: 5px;
   }}
+  details.rundetails > summary {{
+    cursor: pointer; list-style: none; margin: -.2rem 0;
+  }}
+  details.rundetails > summary::-webkit-details-marker {{ display: none; }}
+  details.rundetails > summary .runno::before {{
+    content: "▸ "; color: var(--dim);
+  }}
+  details.rundetails[open] > summary .runno::before {{ content: "▾ "; }}
+  details.rundetails > summary:hover h3 {{ color: var(--link); }}
   .runhead {{ display: flex; gap: .6rem; align-items: center;
              flex-wrap: wrap; margin-bottom: .1rem; }}
   .runno {{ font-family: "SF Mono", Menlo, monospace; font-size: .74rem;
@@ -528,6 +547,18 @@ the textbook gains.</p>
 <footer>
 Two L motors, one Technic Hub &middot; MuJoCo + PPO &middot; telemetry over BLE
 </footer>
+
+<script>
+/* Runs are collapsed by default; a summary-table link must still land on an
+   OPEN run. No other JS on this page. */
+function openTarget() {{
+  if (!location.hash) return;
+  var el = document.querySelector(location.hash + " > details.rundetails");
+  if (el) el.open = true;
+}}
+window.addEventListener("hashchange", openTarget);
+openTarget();
+</script>
 
 </body>
 </html>

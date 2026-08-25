@@ -1,0 +1,16 @@
+Searching for any hub with Pybricks service...
+1000 ticks, worst period ms: 6
+actuation latency ms: 22
+actuation latency ms: 23
+actuation latency ms: 18
+actuation latency ms: 22
+actuation latency ms: 19
+part 3: stand the robot UP on the ground, steady it lightly. 6 trials.
+gyro response ms: 23
+gyro response ms: 16
+gyro response ms: 19
+gyro response ms: 18
+gyro response ms: 31
+gyro response ms: 19
+part 3 done: gyro-response minus ~1 ms of body spin-up = sensing lag.
+compare with part 2: encoder time - gyro time ~= stiction/backlash takeup
