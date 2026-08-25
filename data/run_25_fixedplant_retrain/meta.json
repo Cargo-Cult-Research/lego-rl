@@ -1,0 +1,16 @@
+{
+  "n": 25,
+  "title": "First retrain on the fixed plant: it wanders",
+  "date": "2026-08-24",
+  "script": "scripts/train_ppo.py --out runs/ppo_fixedplant_seed0",
+  "question": "Does the standard recipe, retrained on the fixed plant (contact fix + backlash), produce a deployable policy?",
+  "verdict": "ruled-out",
+  "headline": "No: training never converged (ep_len 310-510/2000), the result holds a -18% duty lean with wheel gain 33x low, and every episode drifts out to the 0.5 m limit. The deployed policy still evaluates 10/10 nominal on the fixed plant, so it keeps its crown; next probes are more steps, then the curriculum env.py prescribes.",
+  "series": [],
+  "hub_output": [
+    "-- sim training run; eval = 10 episodes per condition --",
+    "ppo_balance_seed0   (deployed): nominal 10/10 full, sigma 0.28 deg | randomized 7/10, sigma 0.40",
+    "ppo_fixedplant_seed0     (new): nominal  0/10 full, sigma 4.12 deg, |drift| 50 cm (limit) | randomized 0/10",
+    "verifier: equilibrium duty -0.182; gains vs sim-tuned: pitch 2.41x, rate 0.58x, wheel 0.03x, wheel_rate 0.09x"
+  ]
+}
