@@ -64,6 +64,10 @@ def main() -> int:
     ap.add_argument("--attach", action="append", type=Path, default=[],
                     help="extra file to copy into the run dir (video, plot, "
                          "raw log ...); the page links or embeds it")
+    ap.add_argument("--no-telemetry", action="store_true",
+                    help="the run has no t_ms time series (crossover segment "
+                         "tables, sysid summaries): keep the whole log as "
+                         "hub_output and write no telemetry.csv")
     ap.add_argument("--series", action="append", default=[],
                     help="col:label:scale, repeatable")
     ap.add_argument("--segment-labels", nargs="*", default=None)
@@ -77,13 +81,18 @@ def main() -> int:
     if d.exists():
         raise SystemExit(f"{d} already exists")
 
-    csv_text, chatter, warn = split_log(args.raw.read_text())
+    if args.no_telemetry:
+        csv_text, warn = None, []
+        chatter = [l for l in args.raw.read_text().splitlines()
+                   if l.strip() and not l.startswith(("Searching", "[exited"))]
+    else:
+        csv_text, chatter, warn = split_log(args.raw.read_text())
 
     series = []
     for spec in args.series:
         col, label, scale = spec.rsplit(":", 2)
         series.append([col, label, float(scale)])
-    if not series:
+    if not series and csv_text is not None:
         series = [["pitch_x10", "pitch (deg)", 0.1], ["duty", "duty (%)", 1]]
 
     meta = {
@@ -100,14 +109,16 @@ def main() -> int:
     d.mkdir(parents=True)
     for extra in args.attach:
         shutil.copy2(extra, d / extra.name)
-    (d / "telemetry.csv").write_text(csv_text)
+    if csv_text is not None:
+        (d / "telemetry.csv").write_text(csv_text)
     (d / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     (d / "notes.md").write_text(
         args.notes.read_text() if args.notes else
         "TODO: what was tested, what the data showed, what it means.\n")
 
-    rows = csv_text.count("\n") - 1
-    print(f"wrote {d.name}: {rows} rows")
+    rows = csv_text.count("\n") - 1 if csv_text is not None else 0
+    print(f"wrote {d.name}: {rows} rows"
+          + (" (no telemetry, by declaration)" if csv_text is None else ""))
     for w in warn:
         print(f"  WARNING: {w}", file=sys.stderr)
     if not args.notes:

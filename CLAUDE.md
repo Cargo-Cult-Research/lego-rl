@@ -60,8 +60,14 @@ run directories directly, so **adding a run is adding a directory** — never
 edit the page's run sections by hand. Only the framing prose lives in the
 `PAGE` template.
 
-Two habits the data has already earned:
+Three habits the data has already earned:
 
+- **Every experiment runs in BOTH sim and real** unless a hardware fall-over
+  is a foregone conclusion. Real data anchors the sim; the sim dissects the
+  real. Proven the day it was adopted: the sim predicted the pipeline gain
+  defect (run 24), then failed to reproduce the hardware's residual (run 26)
+  — and the disagreement itself was the next lead. Prepare the sim twin
+  alongside the hub program, same controllers, same statistic (sigma).
 - **Sweep several configurations inside one launch.** Each run costs a human
   hold-and-release, so the sweep programs (`experimental/sweeps/`) step through configs with the hub
   computing summary statistics on the fly.
