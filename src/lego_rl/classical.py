@@ -10,11 +10,12 @@ import math
 import numpy as np
 
 from .env import OBS_SCALE
-from .gains import GAINS_REFERENCE
+from .gains import FRICTION_COMP, GAINS_REFERENCE, GAINS_SIM_TUNED
 
 # duty% per (deg, deg/s, deg, deg/s) on (pitch, pitch_rate, wheel, wheel_rate)
 # Single source: robot/gains.py (via lego_rl.gains).
 PYBRICKS_GAINS = np.array(GAINS_REFERENCE, dtype=float)
+SIM_TUNED_GAINS = np.array(GAINS_SIM_TUNED, dtype=float)
 
 
 def pybricks_to_si(g=PYBRICKS_GAINS):
@@ -27,8 +28,16 @@ def si_to_pybricks(g):
 
 
 class ClassicalController:
-    def __init__(self, gains_si=None, friction_comp=0.10, v_nominal=7.4):
-        self.g = pybricks_to_si() if gains_si is None else np.asarray(gains_si, dtype=float)
+    """Defaults mirror what the ROBOT actually runs (robot/gains.py): the
+    sim-tuned gains, friction compensation retired. An earlier default was
+    the published reference gains with friction_comp=0.10 — i.e. the sim's
+    'classical controller' was a configuration the hardware had abandoned,
+    and every default-constructed rollout quietly fell."""
+
+    def __init__(self, gains_si=None, friction_comp=FRICTION_COMP / 100.0,
+                 v_nominal=7.4):
+        self.g = (pybricks_to_si(SIM_TUNED_GAINS) if gains_si is None
+                  else np.asarray(gains_si, dtype=float))
         self.friction_comp = friction_comp
         self.v_nominal = v_nominal
 

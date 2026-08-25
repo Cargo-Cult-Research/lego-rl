@@ -1,0 +1,16 @@
+{
+  "n": 23,
+  "title": "The sim, on camera",
+  "date": "2026-08-24",
+  "script": "scripts/render_rollout.py",
+  "question": "The MuJoCo model has only ever been visible as statistics — what do its rollouts actually look like?",
+  "verdict": "progress",
+  "headline": "First videos out of the simulator: classical and learned controllers on the nominal and randomized plant. The very first render fell on camera and exposed that the sim's default classical controller was still running the configuration the hardware abandoned — fixed by pointing the defaults at robot/gains.py.",
+  "series": [],
+  "media": {
+    "classical_nominal.mp4": "classical law (robot/gains.py), nominal measured parameters, 8 s",
+    "policy_seed0_nominal.mp4": "PPO policy (ppo_balance_seed0), nominal parameters, 8 s",
+    "policy_seed0_randomized.mp4": "same policy on a domain-randomized draw (seed 3), 8 s"
+  },
+  "hub_output": []
+}
