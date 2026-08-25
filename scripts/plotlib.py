@@ -11,6 +11,29 @@ import html
 PALETTE = ["#9ec1de", "#e3a9a0", "#a9d6a0", "#d8c48a", "#c3a6d8", "#8fc4c0"]
 
 
+def _decimate(pts, max_pts=1500):
+    """Envelope-preserving decimation for long series.
+
+    A 200 Hz capture plotted point-for-point once made raw path data 55% of
+    the whole page. Per x-bucket, keep the min and max sample (in time
+    order), so peaks and ring amplitudes survive exactly while the path
+    stays under ~2 points per output pixel.
+    """
+    n = len(pts)
+    if n <= max_pts:
+        return pts
+    nb = max_pts // 2
+    out = []
+    for b in range(nb):
+        seg = pts[n * b // nb:n * (b + 1) // nb]
+        if not seg:
+            continue
+        i_mn = min(range(len(seg)), key=lambda i: seg[i][1])
+        i_mx = max(range(len(seg)), key=lambda i: seg[i][1])
+        out.extend(seg[i] for i in sorted({i_mn, i_mx}))
+    return out
+
+
 def _nice(lo: float, hi: float, n: int = 5) -> list[float]:
     """Round tick values spanning [lo, hi]."""
     if hi <= lo:
@@ -108,6 +131,7 @@ def line_chart(series, *, width=760, height=260, xlabel="", ylabel="",
 
     for i, (label, pts) in enumerate(series):
         colour = PALETTE[i % len(PALETTE)]
+        pts = _decimate(pts)
         d = " ".join(
             ("M" if j == 0 else "L") + f"{sx(x):.1f},{sy(y):.1f}"
             for j, (x, y) in enumerate(pts) if x0 <= x <= x1

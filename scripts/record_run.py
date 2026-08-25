@@ -20,7 +20,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,7 +58,12 @@ def main() -> int:
     ap.add_argument("--headline", default="")
     ap.add_argument("--script", default="")
     ap.add_argument("--verdict", default="open", choices=VERDICTS)
-    ap.add_argument("--date", default="2026-08-22")
+    # Defaults to today. (This was once a frozen literal, so every run
+    # recorded without --date got stamped with bringup day.)
+    ap.add_argument("--date", default=date.today().isoformat())
+    ap.add_argument("--attach", action="append", type=Path, default=[],
+                    help="extra file to copy into the run dir (video, plot, "
+                         "raw log ...); the page links or embeds it")
     ap.add_argument("--series", action="append", default=[],
                     help="col:label:scale, repeatable")
     ap.add_argument("--segment-labels", nargs="*", default=None)
@@ -91,6 +98,8 @@ def main() -> int:
         meta["extra_charts"] = args.extra_charts
 
     d.mkdir(parents=True)
+    for extra in args.attach:
+        shutil.copy2(extra, d / extra.name)
     (d / "telemetry.csv").write_text(csv_text)
     (d / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     (d / "notes.md").write_text(

@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import argparse
 import html
+import importlib.util
 import json
 import math
+import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -31,7 +34,20 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 DEFAULT_OUT = Path.home() / "code/housekeeping/strawrunway/pages/lego-rl"
 
-GAINS = (10.71, 0.87, 0.43, 0.30)
+
+def _load_gains():
+    """The gains come from robot/gains.py — the single source — via importlib
+    so the page builder stays stdlib-only."""
+    spec = importlib.util.spec_from_file_location("_g", ROOT / "robot" / "gains.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return tuple(mod.GAINS_SIM_TUNED)
+
+
+GAINS = _load_gains()
+MEDIA_VIDEO = {".mp4", ".webm", ".mov"}
+MEDIA_IMAGE = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
+STANDARD = {"meta.json", "notes.md", "telemetry.csv"}
 BAND_COLOURS = ["#9ec1de", "#a9d6a0", "#c3a6d8", "#d8c48a", "#e3a9a0"]
 VERDICTS = {
     "guilty": ("guilty", "#e3a9a0"),
@@ -47,62 +63,102 @@ VERDICTS = {
 # data
 
 
-def read_run(d: Path) -> dict | None:
-    """One run directory -> {meta, notes, cols, rows}. None if unreadable."""
-    meta_p, csv_p = d / "meta.json", d / "telemetry.csv"
-    if not meta_p.exists() or not csv_p.exists():
-        return None
-    meta = json.loads(meta_p.read_text())
-    lines = csv_p.read_text().splitlines()
-    if not lines:
-        return None
-    cols = lines[0].split(",")
-    pat = re.compile(r"^" + ",".join([r"-?\d+"] * len(cols)) + r"$")
-    rows = [[int(x) for x in l.split(",")] for l in lines[1:] if pat.match(l.strip())]
-    notes_p = d / "notes.md"
+class RunError(Exception):
+    """A malformed run directory. The build FAILS on these rather than
+    skipping: run 22 — the project's best result — sat invisible on the
+    published page for a day because the old code skipped it with a print
+    into a log nobody reads."""
+
+
+def read_run(d: Path) -> dict:
+    """One run directory -> {meta, notes, cols, rows, media, files}.
+
+    Contract: meta.json and notes.md are REQUIRED; telemetry.csv is optional
+    (not every run yields a time series — see run 22). Any other file in the
+    directory is published alongside the page: video/images render inline,
+    everything else becomes a download link.
+    """
+    meta_p, csv_p, notes_p = d / "meta.json", d / "telemetry.csv", d / "notes.md"
+    if not meta_p.exists():
+        raise RunError(f"{d.name}: no meta.json (record_run.py writes it; "
+                       "for a hand-made run, copy one and edit)")
+    if not notes_p.exists():
+        raise RunError(f"{d.name}: no notes.md — the prose is not optional")
+    try:
+        meta = json.loads(meta_p.read_text())
+    except json.JSONDecodeError as e:
+        raise RunError(f"{d.name}: meta.json does not parse: {e}")
+    for field in ("n", "title", "verdict"):
+        if field not in meta:
+            raise RunError(f"{d.name}: meta.json is missing '{field}'")
+    if meta["verdict"] not in VERDICTS:
+        raise RunError(f"{d.name}: unknown verdict {meta['verdict']!r} "
+                       f"(one of {sorted(VERDICTS)})")
+
+    cols, rows = [], []
+    if csv_p.exists():
+        lines = csv_p.read_text().splitlines()
+        if not lines:
+            raise RunError(f"{d.name}: telemetry.csv is empty — delete it "
+                           "or record something")
+        cols = lines[0].split(",")
+        pat = re.compile(r"^" + ",".join([r"-?\d+"] * len(cols)) + r"$")
+        bad = [i + 2 for i, l in enumerate(lines[1:]) if l.strip() and not pat.match(l.strip())]
+        if bad:
+            raise RunError(f"{d.name}: telemetry.csv has {len(bad)} rows that "
+                           f"are not all-integer CSV (first at line {bad[0]})")
+        rows = [[int(x) for x in l.split(",")] for l in lines[1:] if l.strip()]
+
+    media, files = [], []
+    for f in sorted(d.iterdir()):
+        if f.name in STANDARD or f.name.startswith("."):
+            continue
+        (media if f.suffix.lower() in MEDIA_VIDEO | MEDIA_IMAGE else files).append(f)
+    if csv_p.exists():
+        files.insert(0, csv_p)   # raw data is part of the record — link it
+
     return {
         "dir": d.name,
         "meta": meta,
-        "notes": notes_p.read_text() if notes_p.exists() else "",
+        "notes": notes_p.read_text(),
         "cols": cols,
         "rows": rows,
+        "media": media,
+        "files": files,
     }
 
 
 def load_runs() -> list[dict]:
-    runs = []
+    runs, errors = [], []
     for d in sorted(DATA.glob("run_*")):
         if not d.is_dir():
             continue
-        r = read_run(d)
-        if r is None:
-            print(f"  skipping {d.name}: missing meta.json or telemetry.csv")
-            continue
-        runs.append(r)
-    runs.sort(key=lambda r: r["meta"].get("n", 0))
+        try:
+            runs.append(read_run(d))
+        except RunError as e:
+            errors.append(str(e))
+    seen = {}
+    for r in runs:
+        n = r["meta"]["n"]
+        if n in seen:
+            errors.append(f"duplicate run number {n}: {seen[n]} and {r['dir']}")
+        seen[n] = r["dir"]
+    if seen:
+        missing = sorted(set(range(1, max(seen) + 1)) - set(seen))
+        if missing:
+            errors.append(f"gap in run numbering: missing {missing} — every "
+                          "hardware run gets a directory, no exceptions "
+                          "(CLAUDE.md); retro-file it, even as verdict=void")
+    if errors:
+        for e in errors:
+            print(f"BUILD FAILED: {e}", file=sys.stderr)
+        raise SystemExit(1)
+    runs.sort(key=lambda r: r["meta"]["n"])
     return runs
 
 
 # --------------------------------------------------------------------------
 # analysis
-
-
-def dominant_hz(vals, dt, lo=2.0, hi=45.0) -> float:
-    n = len(vals)
-    if n < 20:
-        return 0.0
-    mean = sum(vals) / n
-    v = [x - mean for x in vals]
-    best, bf = 0.0, 0.0
-    f = lo
-    while f <= hi:
-        re_ = sum(x * math.cos(2 * math.pi * f * i * dt) for i, x in enumerate(v))
-        im_ = sum(x * math.sin(2 * math.pi * f * i * dt) for i, x in enumerate(v))
-        a = math.hypot(re_, im_) / n
-        if a > best:
-            best, bf = a, f
-        f += 0.2
-    return bf
 
 
 def spectrum(vals, dt, lo=1.0, hi=40.0, step=0.4):
@@ -193,10 +249,13 @@ def run_charts(run: dict) -> str:
                 continue
             ci = cols.index(col)
             sub = [r for r in rows if r[ti] > 1300] or rows
+            # dt comes from the data (derived above) — an earlier version
+            # hardcoded 0.02 s and misread every 200 Hz spectrum by 4x.
             out.append(
-                f'<figure>{line_chart([("pitch", spectrum([r[ci] * float(scale) for r in sub], 0.02))], title="Pitch spectrum — where the energy sits", xlabel="frequency (Hz)", ylabel="amplitude (deg)", height=200)}'
-                f'<figcaption>The robot\'s own pendulum mode is around 2 Hz, so '
-                f'almost none of this motion is the robot falling.</figcaption></figure>')
+                f'<figure>{line_chart([("pitch", spectrum([r[ci] * float(scale) for r in sub], dt_ms / 1000.0))], title="Pitch spectrum — where the energy sits", xlabel="frequency (Hz)", ylabel="amplitude (deg)", height=200)}'
+                f'<figcaption>Amplitude spectrum of the samples after the '
+                f'hand-held first 1.3 s, at the run\'s own {rate} Hz sample '
+                f'rate.</figcaption></figure>')
         elif spec == "terms" and {"pitch_x10", "rate_dps", "wheel_deg"} <= set(cols):
             ka, kr, km, _ = GAINS
             pi_, ri, wi = (cols.index(c) for c in ("pitch_x10", "rate_dps", "wheel_deg"))
@@ -204,8 +263,39 @@ def run_charts(run: dict) -> str:
             n = len(sub)
             out.append(
                 f'<figure>{bar_chart([("K_angle x pitch", round(sum(abs(ka * r[pi_] / 10) for r in sub) / n, 1)), ("K_rate x gyro", round(sum(abs(kr * r[ri]) for r in sub) / n, 1)), ("K_wheel x angle", round(sum(abs(km * r[wi]) for r in sub) / n, 1))], title="Mean |contribution| to commanded duty", xlabel="duty %  (the motor rail is 100)", colour=lambda l, v: "#e3a9a0" if v > 100 else "#9ec1de")}'
-                f'<figcaption>The rate term alone averages more than the motor '
-                f'can deliver.</figcaption></figure>')
+                f'<figcaption>Mean absolute contribution of each feedback term '
+                f'to the commanded duty, current gains from robot/gains.py.'
+                f'</figcaption></figure>')
+    return "\n".join(out)
+
+
+def run_media(run: dict) -> str:
+    """Inline video/image elements plus plain links for other files.
+
+    Media are separate files copied next to index.html — never embedded in
+    the page — so the page itself stays small; a video is only fetched when
+    somebody presses play (preload="none").
+    """
+    meta = run["meta"]
+    captions = meta.get("media", {})
+    out = []
+    for f in run["media"]:
+        rel = f"media/{run['dir']}/{f.name}"
+        cap = html.escape(captions.get(f.name, f.name))
+        if f.suffix.lower() in MEDIA_VIDEO:
+            out.append(
+                f'<figure><video controls preload="none" src="{rel}"></video>'
+                f'<figcaption>{cap} · <a href="{rel}">download</a>'
+                f'</figcaption></figure>')
+        else:
+            out.append(
+                f'<figure><img loading="lazy" src="{rel}" alt="{cap}">'
+                f'<figcaption>{cap}</figcaption></figure>')
+    if run["files"]:
+        links = " · ".join(
+            f'<a href="media/{run["dir"]}/{f.name}">{html.escape(f.name)}</a>'
+            for f in run["files"])
+        out.append(f'<p class="runfiles">files: {links}</p>')
     return "\n".join(out)
 
 
@@ -227,6 +317,7 @@ def run_entry(run: dict) -> str:
   <p class="headline">{html.escape(meta.get('headline', ''))}</p>
   {md_to_html(run['notes'])}
   {run_charts(run)}
+  {run_media(run)}
   {hub_block}
 </article>"""
 
@@ -247,33 +338,32 @@ def summary_table(runs: list[dict]) -> str:
 def build(out_dir: Path) -> Path:
     runs = load_runs()
     print(f"  {len(runs)} runs")
-    by_n = {r["meta"].get("n"): r for r in runs}
-
-    stats = {"hz1": "?", "hz3": "?", "peak1": "?", "peak3": "?",
-             "cm1": "?", "cm3": "?", "nruns": len(runs)}
-    r1, r3 = by_n.get(1), by_n.get(3)
-    if r1 and r1["rows"]:
-        c, rows = r1["cols"], r1["rows"]
-        pi_, ri, wi, ti = (c.index(x) for x in ("pitch_x10", "rate_dps", "wheel_deg", "t_ms"))
-        osc = [r for r in rows if r[ti] > 1300]
-        stats["hz1"] = round(dominant_hz([r[pi_] / 10 for r in osc], 0.02), 1)
-        stats["peak1"] = max(abs(r[ri]) for r in osc)
-        stats["cm1"] = round(abs(rows[-1][wi] - rows[0][wi]) * math.pi / 180 * 3.75, 1)
-    if r3 and r3["rows"]:
-        c, rows = r3["cols"], r3["rows"]
-        pi_, ri, wi, ti = (c.index(x) for x in ("pitch_x10", "rate_dps", "wheel_deg", "t_ms"))
-        stats["hz3"] = round(dominant_hz([r[pi_] / 10 for r in rows if r[ti] > 1000], 0.02), 1)
-        stats["peak3"] = max(abs(r[ri]) for r in rows)
-        stats["cm3"] = round(abs(rows[-1][wi] - rows[0][wi]) * math.pi / 180 * 3.75, 1)
 
     html_out = PAGE.format(
         labbook="\n".join(run_entry(r) for r in runs),
         summary=summary_table(runs),
-        **stats,
     )
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Media and data files ride ALONGSIDE the page, never inside it: the page
+    # stays one small file, and a video costs nothing until played.
+    for run in runs:
+        srcs = run["media"] + run["files"]
+        if not srcs:
+            continue
+        mdir = out_dir / "media" / run["dir"]
+        mdir.mkdir(parents=True, exist_ok=True)
+        for f in srcs:
+            dst = mdir / f.name
+            if not dst.exists() or f.stat().st_mtime > dst.stat().st_mtime:
+                shutil.copy2(f, dst)
+
+    # Atomic replace: the deploy wrapper promises "stale, never broken", so a
+    # crash mid-write must not leave a truncated page.
     dest = out_dir / "index.html"
-    dest.write_text(html_out)
+    tmp = out_dir / ".index.html.tmp"
+    tmp.write_text(html_out)
+    os.replace(tmp, dest)
     return dest
 
 
@@ -335,6 +425,8 @@ PAGE = """<!doctype html>
     font-size: .8rem; color: var(--dim); font-style: italic;
     padding: .1rem .4rem .5rem; line-height: 1.5;
   }}
+  figure video, figure img {{ width: 100%; border-radius: 3px; display: block; }}
+  .runfiles {{ font-size: .78rem; color: var(--dim); }}
   table {{ border-collapse: collapse; width: 100%; margin: 1.2rem 0;
           font-size: .88rem; }}
   th, td {{ text-align: left; padding: .35rem .6rem;
@@ -373,7 +465,7 @@ PAGE = """<!doctype html>
 
 <header>
   <h1>Teaching a LEGO set to stand up</h1>
-  <div class="sub">a lab book, kept while the robot refuses to</div>
+  <div class="sub">a lab book of what the hardware runs actually measured</div>
 </header>
 
 <p>A LEGO Technic 42124 hoverboard rebuilt as a two-wheeled inverted pendulum:
@@ -385,10 +477,13 @@ published four-gain controller for this class of robot. So the learned policy
 gets linearised at equilibrium and its Jacobian compared against those gains.
 Agreement validates the whole pipeline against a known answer.</p>
 
-<p>The robot does not balance yet. What follows is every hardware run so far,
-in order, including the ones that produced nothing and the hypotheses that
-turned out to be wrong. Each entry is generated from its own telemetry —
-{nruns} runs, all captured off the hub over Bluetooth at 200 Hz.</p>
+<p>What follows is every hardware run, in order — including the ones that
+produced nothing and the hypotheses that turned out to be wrong. Each entry
+is generated from its own run directory: the telemetry, the question the run
+was meant to settle, and what it actually showed. The page has no hand-written
+status section, deliberately: anything like "where it stands" goes stale the
+moment the next run lands, so the runs speak in order and the newest entry is
+the current state.</p>
 
 <h2>The first surprise came before the hardware</h2>
 
@@ -421,48 +516,17 @@ step the other way. Everything below is a consequence of that.</p>
 
 {labbook}
 
-<h2>Where it stands</h2>
-
-<table>
-<tr><th>&nbsp;</th><th>run 1 — as shipped</th><th>run 3 — filtered</th></tr>
-<tr><td>oscillation</td><td class="num">{hz1} Hz</td><td class="num">{hz3} Hz</td></tr>
-<tr><td>peak gyro</td><td class="num bad">{peak1} &deg;/s</td><td class="num">{peak3} &deg;/s</td></tr>
-<tr><td>net travel</td><td class="num bad">{cm1} cm</td><td class="num good">{cm3} cm</td></tr>
-<tr><td>outcome</td><td class="bad">fell over</td><td class="good">survived the full run</td></tr>
-</table>
-
-<p>And after bracing the structure (run 12): <strong>1.50&deg; pitch RMS,
-3.6&deg; peak</strong> over ten seconds, with the ring down to 0.34&deg;.</p>
-
-<p>The oscillation proved indifferent to gain magnitude, to a duty clamp, to
-the yaw loop, to the wheel-speed term and its filtering, to the friction
-compensation's slope, and to the gyro filter. Six software hypotheses, six
-funerals — and then the build changed, and the answer arrived from the
-hardware.</p>
-
-<p>Bracing the structure cut the ring 81% and <strong>raised its
-frequency</strong>, 10.6 to 11.5 Hz. That direction is the whole proof: adding
-19 g of mass to an oscillator lowers its frequency, since &omega; scales as
-&radic;(k/m). It rose, so stiffness grew faster than mass — which is what
-bracing a compliant structure does, and what no control parameter had managed
-in either direction across eleven runs. The IMU lives on the hub, so the loop
-was closed around a sensor that was not rigidly attached to the body being
-controlled. That is a classic way to build an oscillator, it cannot be tuned
-away, and it explains why six software explanations died in a row while the
-residual outlived every one of them.</p>
-
 <h2>What this is really about</h2>
 
 <p>None of this is what the project is for. It is a rehearsal — the same
 measure/model/train/deploy loop, run end to end on a robot cheap enough to
 drop, before the same pipeline points at a quadruped. The useful part is that
-the failures keep showing up in the right order: the simulator caught the
-textbook gains, the telemetry caught the discontinuities, and the sweeps have
-now caught three of my own explanations being wrong.</p>
+the failures keep showing up in the right order: each layer's instruments
+have caught the layer above being wrong, starting with the simulator catching
+the textbook gains.</p>
 
 <footer>
-Two L motors, one Technic Hub, Pybricks 3.6.1 &middot; MuJoCo + PPO on an
-M3 Ultra &middot; telemetry at 200 Hz over BLE
+Two L motors, one Technic Hub &middot; MuJoCo + PPO &middot; telemetry over BLE
 </footer>
 
 </body>

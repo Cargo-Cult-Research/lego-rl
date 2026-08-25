@@ -23,9 +23,21 @@ wrong. Null results and dead hypotheses are the most useful entries in the lab
 book; a run that only exists in a chat transcript is a run that did not happen.
 
     data/run_NN_slug/
-        telemetry.csv   the hub's CSV dump: `t_ms,...` header + integer rows
-        meta.json       what was tested and how to plot it
-        notes.md        prose: what was tested, what the data showed, what it means
+        meta.json       REQUIRED: what was tested and how to plot it
+        notes.md        REQUIRED: prose — what was tested, what the data
+                        showed, what it means
+        telemetry.csv   the hub's CSV dump (`t_ms,...` header + integer
+                        rows); optional — not every run yields a time series
+        *.mp4 *.png     any other file in the directory is published with the
+        *.log *.csv     page: video/images render inline in the run's entry,
+                        everything else becomes a download link. Sim rollout
+                        videos come from scripts/render_rollout.py.
+
+The page build FAILS LOUDLY on a malformed run directory (missing meta/notes,
+bad verdict, non-integer telemetry rows, duplicate or gapped run numbers) —
+the old skip-and-print once hid the project's best result for a day. The same
+checks run in the test suite (scripts/check_labbook.py), so `pytest -q`
+breaks when the lab book does.
 
 Create it with the helper rather than by hand — it numbers the run, splits the
 hub's stdout into telemetry and chatter, and validates the CSV:
