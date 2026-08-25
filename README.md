@@ -209,7 +209,7 @@ answer *before* the hardware did, and was right.
 - Pressing the hub button re-runs the **last downloaded** program. If you are
   debugging over BLE, make sure you know which one that is.
 - Every sign in the chain was verified empirically, not reasoned about, using
-  LED-feedback probes (`robot/sysid_signs.py`, `robot/sysid_motor_pulse.py`).
+  LED-feedback probes (`robot/sysid_signs.py`, `robot/sysid_directions.py`).
   The one that bit us: raw `+Axis.Y` reads a tilt *toward* the LED face as
   negative, hence `PITCH_AXIS = -Axis.Y`.
 
@@ -221,7 +221,7 @@ answer *before* the hardware did, and was right.
 | no_load_speed, motor_friction_duty | `robot/sysid_motor.py` (wheels up) | measured (1632 dps @ 8.37 V, 10% dead zone) |
 | delay_ctrl_steps | `robot/sysid_latency.py` | measured (15–19 ms) |
 | imu rate noise | `robot/sysid_imu.py` | measured (0.25 dps) |
-| hub orientation, motor directions, pitch sign | `robot/sysid_directions.py`, `sysid_motor_pulse.py`, `sysid_signs.py` | measured |
+| hub orientation, motor directions, pitch sign | `robot/sysid_directions.py`, `sysid_signs.py` | measured |
 | battery_v range | `hub.battery.voltage()` fresh vs dying | measured |
 | stall_torque | lever arm + kitchen scale at duty=100 | **guess** |
 | axle_half_width, imu_angle_noise, ground_friction | calipers / still-hub log / coast-down | **guess** |

@@ -31,7 +31,7 @@ Create it with the helper rather than by hand — it numbers the run, splits the
 hub's stdout into telemetry and chatter, and validates the CSV:
 
     .venv/bin/python scripts/record_run.py RAW.log slug --title "..." \
-        --question "..." --headline "..." --script robot/sweep_x.py \
+        --question "..." --headline "..." --script experimental/sweeps/sweep_x.py \
         --verdict ruled-out --series pitch_x10:"pitch (deg)":0.1 \
         --segment-labels "seg A" "seg B" "seg C"
 
@@ -51,7 +51,7 @@ edit the page's run sections by hand. Only the framing prose lives in the
 Two habits the data has already earned:
 
 - **Sweep several configurations inside one launch.** Each run costs a human
-  hold-and-release, so `robot/sweep_*.py` step through configs with the hub
+  hold-and-release, so the sweep programs (`experimental/sweeps/`) step through configs with the hub
   computing summary statistics on the fly.
 - **Order sweep segments safest-first.** Twice a destructive configuration sat
   in the middle and the robot fell before reaching the segment that would have
