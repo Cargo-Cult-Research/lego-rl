@@ -43,13 +43,26 @@ ignited cycle periodically slams the tail.
 
 So the causal chain is closed end to end: fit excess (+11%) → crosses the
 deadband limit-cycle boundary → amplitude set by the describing function →
-1.85× oscillation and a hot duty tail. Every pre-fix hardware comparison of
-"learned vs classical" was carrying this; the policy travelled through a
-pipeline that made whatever it computed 11% hotter.
+1.85× oscillation and a hot duty tail.
+
+## Correction (2026-08-24, later the same day): the learned policy was NOT affected
+
+Run 22 inferred "whatever passes through this pipeline gets an 11% gain bump
+… the policy would then have been carrying the pipeline's defect." That
+inference does not survive the trace. The defect lives in `linear_to_net.py`'s
+fit, and only the pipeline-CONTROL ever passes through that step. The learned
+policy's chain is `export_policy.py` (direct weight copy, no fit) → Q12, and
+both stages measure clean offline: float export vs SB3 max err < 0.002
+(tests/test_contracts.py), Q12 vs float export max err 0.0019, mean ratio
+0.9999 over 2000 states. **Run 18's verdict therefore stands un-impeached:
+classical really was quieter in 5 of 6 paired cycles.** The policy's real,
+separately-measured deficiencies remain the weak position gain the verifier
+flagged (ratio 0.35) and training on the pre-contact-fix sim.
 
 Videos: `gain_100.mp4` vs `gain_111.mp4`, same seed, same plant — the ×1.11
 robot's wheel-rattle is visible to the eye.
 
-**Still to do on hardware:** rerun the run-22 ABBA with the regenerated
-`policy_linear_fast.py`. If the pipeline is truly clean now, direct and
-through-pipeline should be statistically indistinguishable.
+**Still to do on hardware:** rerun the crossover with the regenerated
+`policy_linear_fast.py` — direct and through-pipeline should now be
+statistically indistinguishable, which validates the fix and retires the
+pipeline as a suspect in any future comparison.

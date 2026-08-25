@@ -38,9 +38,9 @@ training, export — against a known answer.
       (`scripts/export_policy.py`, `scripts/make_fast_policy.py`,
       `robot/balance_policy.py`), after an 11× inference speedup and one
       filter that the sim should have taught it. It does **not** beat the
-      classical controller (run 18) — and run 22/24 found the export pipeline
-      was adding +11% loop gain to whatever passed through it, since fixed;
-      the post-fix rerun is still to be done
+      classical controller (run 18). Runs 22/24 found and fixed a +11% gain
+      defect in the pipeline-CONTROL's fit (`linear_to_net.py`); the learned
+      policy's own export chain measured clean, so run 18 stands
 - [ ] **M6** swing-up from lying flat — the task linear feedback cannot do
       (`scripts/train_ppo.py --task swingup`)
 
@@ -126,9 +126,10 @@ in compliance.
 
 Current: **sigma ≈ 1.06°** (classical, run 22, drift-immune statistic).
 The learned policy's honest standing: run 18 measured classical quieter in
-5 of 6 paired cycles — but every pre-run-24 comparison sent the policy
-through a pipeline that added +11% loop gain (found by run 22's ABBA,
-traced and fixed in run 24), so the comparison deserves a rerun.
+5 of 6 paired cycles, and that stands — run 24 traced the +11% pipeline
+defect to the pipeline-control's fit only; the policy's own export chain
+measured clean. Its real deficiencies are the verifier-flagged weak position
+gain and training on the pre-contact-fix sim.
 
 ## The policy on the robot (M5)
 
