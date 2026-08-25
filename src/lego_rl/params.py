@@ -4,9 +4,15 @@ Every number is MEASURED (you put it on a scale / timed it), DATASHEET
 (community-measured motor data), or GUESS (placeholder for sysID). Training
 against GUESS values only smoke-tests the pipeline; before trusting
 sim-to-real, burn down the GUESS list — `unmeasured()` prints it.
+
+Provenance is attached to each field's metadata, not kept in a side table:
+a side table drifted (three fields ended up untagged and nothing noticed),
+and when a second robot splits these params into shared motor/drivetrain
+pieces and per-robot bodies, metadata travels with the field. An untagged
+field fails at import; the test suite additionally checks that every GUESS
+is either domain-randomized or explicitly exempted.
 """
-import math
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, fields, replace
 
 MEASURED, DATASHEET, GUESS = "MEASURED", "DATASHEET", "GUESS"
 # INFERRED: not observed directly, derived from a fit or from another signal.
@@ -15,24 +21,42 @@ MEASURED, DATASHEET, GUESS = "MEASURED", "DATASHEET", "GUESS"
 INFERRED = "INFERRED"
 
 
+def _p(prov: str, src: str = ""):
+    return {"prov": prov, "src": src}
+
+
 @dataclass
 class PhysicalParams:
     # --- geometry / mass ---
-    wheel_radius: float = 0.0375       # m, measured 75 mm dia 2026-08-22
-    axle_half_width: float = 0.06      # m, half-span of the lumped wheel cylinder
-    wheel_mass: float = 0.058          # kg, both wheels, measured 29 g each
-    body_mass: float = 0.371           # kg, measured: 429 g total - 58 g wheels
-                                       # (bracing added 2026-08-22: 410 -> 429 g)
-    com_height: float = 0.05           # m, measured. LOW -> fast pendulum (~14 rad/s);
-                                       # raising the hub would make everything easier.
+    wheel_radius: float = field(default=0.0375, metadata=_p(
+        MEASURED, "calipers on the actual 42124 tire: 75 mm dia, 2026-08-22"))
+    axle_half_width: float = field(default=0.06, metadata=_p(
+        GUESS, "half-span of the lumped wheel cylinder"))
+    wheel_mass: float = field(default=0.058, metadata=_p(
+        MEASURED, "kitchen scale, 29 g each"))
+    body_mass: float = field(default=0.371, metadata=_p(
+        MEASURED, "kitchen scale, batteries in: 429 g total - 58 g wheels "
+                  "(bracing added 2026-08-22: 410 -> 429 g)"))
+    com_height: float = field(default=0.05, metadata=_p(
+        MEASURED, "balance the body (no wheels) on a straightedge"))
+    # LOW com -> fast pendulum (~14 rad/s); raising the hub would make
+    # everything easier.
+
     # --- motors (2x Technic L motor, device id 46, one per wheel, direct
     #     drive, electrically synced; values below are PER MOTOR) ---
-    n_motors: int = 2
-    stall_torque: float = 0.25         # N*m at v_nominal (L motor, weaker than XL)
-    no_load_speed: float = 1443.0      # deg/s at v_nominal (measured 1632 @ 8.37 V, 2026-08-22)
-    v_nominal: float = 7.4             # V, anchor from the Pybricks reference dc() scaling
-    motor_friction_duty: float = 0.10  # measured: dead zone to ~10% duty, kinetic intercept 7.4%
-    battery_v: float = 8.37            # V, measured 2026-08-22; 6xAA: ~9.5 fresh, ~6.5 dying
+    n_motors: int = field(default=2, metadata=_p(MEASURED))
+    stall_torque: float = field(default=0.25, metadata=_p(
+        GUESS, "community numbers vary; lever + kitchen scale would settle it"))
+    no_load_speed: float = field(default=1443.0, metadata=_p(
+        MEASURED, "sysid_motor.py 2026-08-22: measured 1632 deg/s @ 8.37 V, "
+                  "17.7 deg/s per duty%, linear above ~50%"))
+    v_nominal: float = field(default=7.4, metadata=_p(
+        DATASHEET, "anchor from the Pybricks reference dc() battery scaling"))
+    motor_friction_duty: float = field(default=0.10, metadata=_p(
+        MEASURED, "sysid_motor.py: no motion at 10% duty, kinetic intercept 7.4%"))
+    battery_v: float = field(default=8.37, metadata=_p(
+        MEASURED, "8366-8379 mV across bringup runs; 6xAA: ~9.5 fresh, ~6.5 dying"))
+
     # --- gearbox backlash ---
     # A few degrees of play in the L motor's gearbox, felt by hand. This is a
     # DEADBAND IN THE TORQUE PATH, which is a textbook limit-cycle generator:
@@ -62,11 +86,14 @@ class PhysicalParams:
     # backlash better than a 1 deg encoder does. The sim previously could not
     # stand with 2 deg of play -- but the robot does, so the sim was wrong; see
     # the solreflimit note in model.py for what was actually broken.
-    motor_backlash_deg: float = 1.0    # half-width of the deadband at the wheel
+    motor_backlash_deg: float = field(default=1.0, metadata=_p(
+        MEASURED, "by hand (half-width of the deadband at the wheel); the "
+                  "1 deg encoder cannot see it"))
     # Contact time constant for the deadband's end stops. NOT a free knob: at
     # MuJoCo's 0.02 s default the stop is so soft that the gap width stops
     # mattering, which is exactly how the deadband got wrongly written off.
-    backlash_solref_s: float = 0.001
+    backlash_solref_s: float = field(default=0.001, metadata=_p(
+        GUESS, "solver contact stiffness, randomized"))
     # Drivetrain compliance, MEASURED 2026-08-23 (robot/sysid_backlash.py):
     # hold a wheel, sweep the motor to both stops, read the encoder.
     #
@@ -98,17 +125,21 @@ class PhysicalParams:
     # which means it normally sits STICTION-LOCKED and effectively rigid -- the
     # compliance only wakes up on large swings. That is plausibly why the real
     # robot tolerates a resonance the sim could not.
-    drivetrain_stiction_duty: float = 0.22   # duty below which nothing winds up
-                                             # -> MuJoCo frictionloss on the
-                                             # lash joint, so the drivetrain is
-                                             # RIGID in normal operation
+    drivetrain_stiction_duty: float = field(default=0.22, metadata=_p(
+        MEASURED, "100 trials 2026-08-23; duty below which nothing winds up "
+                  "-> MuJoCo frictionloss on the lash joint, so the "
+                  "drivetrain is RIGID in normal operation"))
     # DEFAULT OFF. The STIFFNESS is measured and solid; the claim that it is
     # the source of the ~11 Hz ring did NOT survive being simulated, and that
     # claim is withdrawn. See the note in model.py.
-    drivetrain_stiffness: float = 0.0   # N*m/rad both motors; measured 2.90
-    drivetrain_damping_ratio: float = 0.10   # GUESS
-    lash_damping: float = 2e-5         # N*m*s/rad inside the deadband; small, and
-                                       # only there to stop free-flight chatter
+    drivetrain_stiffness: float = field(default=0.0, metadata=_p(
+        MEASURED, "2.90 N*m/rad both motors, sysid_backlash_many.py "
+                  "2026-08-23. The NUMBER is measured; its role in the 11 Hz "
+                  "ring is not, hence default 0.0"))
+    drivetrain_damping_ratio: float = field(default=0.10, metadata=_p(GUESS))
+    lash_damping: float = field(default=2e-5, metadata=_p(
+        GUESS, "N*m*s/rad inside the deadband; small, only there to stop "
+               "free-flight chatter"))
     # Motor-side inertia, as a MULTIPLE OF THE ROBOT'S INERTIA REFLECTED AT THE
     # WHEEL -- because that ratio is what sets the drivetrain mode, and getting
     # it wrong is what made three earlier compliance models unusable.
@@ -132,7 +163,10 @@ class PhysicalParams:
     # large, and armature adds directly to the drive inertia: 10x means 11x
     # less wheel acceleration, which a robot that visibly balances does not
     # have. Modest default, wide randomization, driveability asserted in tests.
-    motor_inertia_mult: float = 0.3    # x robot inertia reflected at the wheel
+    motor_inertia_mult: float = field(default=0.3, metadata=_p(
+        INFERRED, "x robot inertia reflected at the wheel; from the measured "
+                  "mode, not weighed"))
+
     # --- sensing / timing ---
     # Pybricks reports motor.angle() and motor.speed() as INTEGER degrees, and
     # the sim had infinite encoder resolution, which mattered far more than it
@@ -140,13 +174,26 @@ class PhysicalParams:
     # term differentiates it: crossing a 2 deg gap in ~20 ms reads as 100 deg/s
     # from a wheel that has not moved, and K_SPEED=0.30 turns that into 30% of
     # duty built on fiction, twice per limit cycle.
-    encoder_quantum_deg: float = 1.0        # MEASURED: integer degrees
-    encoder_speed_quantum_dps: float = 1.0  # MEASURED: integer deg/s
-    imu_angle_bias: float = 0.0        # deg, offset on integrated pitch
-    imu_rate_bias: float = 0.0         # deg/s, gyro bias
-    imu_angle_noise: float = 0.05      # deg, per-sample std
-    imu_rate_noise: float = 0.2        # deg/s, per-sample std
-    delay_ctrl_steps: int = 4          # ticks; measured 15-19 ms cmd->motion (incl. stiction)
+    encoder_quantum_deg: float = field(default=1.0, metadata=_p(
+        MEASURED, "Pybricks returns integer degrees"))
+    encoder_speed_quantum_dps: float = field(default=1.0, metadata=_p(
+        MEASURED, "Pybricks returns integer deg/s"))
+    imu_angle_bias: float = field(default=0.0, metadata=_p(
+        MEASURED, "deg; defined zero at arm time (the robot re-zeros while "
+                  "held still); drift bounded by sysid_imu: ~1 deg / 30 s"))
+    imu_rate_bias: float = field(default=0.0, metadata=_p(
+        MEASURED, "deg/s; sysid_imu 2026-08-22: -0.03 dps stationary. NOTE "
+                  "run 20: in closed loop the effective bias walks (~0.2 "
+                  "deg/s) because Pybricks only re-zeros at rest -- the "
+                  "randomization range matters more than this default"))
+    imu_angle_noise: float = field(default=0.05, metadata=_p(
+        GUESS, "deg per-sample std; robot/sysid_imu.py would settle it"))
+    imu_rate_noise: float = field(default=0.2, metadata=_p(
+        MEASURED, "deg/s per-sample std; sysid_imu 2026-08-22: 0.25 dps"))
+    delay_ctrl_steps: int = field(default=4, metadata=_p(
+        MEASURED, "sysid_latency 2026-08-22: loop jitter <=1 ms, "
+                  "cmd->motion 15-19 ms (incl. stiction)"))
+
     # --- hub mount compliance: the reason M0 took eleven runs ---
     # The IMU sits in the hub, and the hub is attached to the chassis through
     # LEGO pins that flex. So the gyro measures the hub twisting on its mount,
@@ -164,54 +211,40 @@ class PhysicalParams:
     # as consistent with bracing tightening the frame the MOTORS sit in, which
     # is slop rather than flex. So this is INFERRED, and it gets a wide range
     # over the shape of the model rather than a tight one around a number.
-    hub_resonance_hz: float = 0.0      # Hz; 11.5 inferred braced, 10.6 unbraced
-    hub_damping_ratio: float = 0.08    # GUESS; the ring persists, so lightly damped
-    hub_mass_frac: float = 0.40        # GUESS; fraction of body_mass in the hub
-    hub_imu_coupling: float = 1.0      # fraction of mount motion the gyro sees.
-                                       # 1.0 assumes the mode is purely in the
-                                       # pitch plane and the IMU is rigid to the
-                                       # flexing element -- both unlikely. See
-                                       # the calibration note in model.py.
+    hub_resonance_hz: float = field(default=0.0, metadata=_p(
+        INFERRED, "a closed-loop gyro frequency (11.5 braced, 10.6 unbraced), "
+                  "not a mount measurement -- the flex was never seen"))
+    hub_damping_ratio: float = field(default=0.08, metadata=_p(
+        GUESS, "the ring persists in closed loop -> lightly damped"))
+    hub_mass_frac: float = field(default=0.40, metadata=_p(
+        GUESS, "fraction of body_mass in the hub; weigh it to settle this"))
+    hub_imu_coupling: float = field(default=1.0, metadata=_p(
+        GUESS, "fraction of mount motion the gyro sees. 1.0 assumes the mode "
+               "is purely in the pitch plane and the IMU is rigid to the "
+               "flexing element -- both unlikely. See model.py"))
+
     # --- loop / sim ---
-    control_hz: float = 200.0          # DT=5 ms in the Pybricks loop
-    physics_dt: float = 0.001
-    ground_friction: float = 1.0
+    control_hz: float = field(default=200.0, metadata=_p(
+        MEASURED, "we set it: DT=5 ms in the Pybricks loop"))
+    physics_dt: float = field(default=0.001, metadata=_p(
+        MEASURED, "we set it: sim integrator step"))
+    ground_friction: float = field(default=1.0, metadata=_p(
+        GUESS, "coast-down test would settle it"))
 
 
-PROVENANCE = {
-    "wheel_radius": MEASURED,        # calipers on the actual 42124 tire
-    "axle_half_width": GUESS,
-    "wheel_mass": MEASURED,          # kitchen scale
-    "body_mass": MEASURED,           # kitchen scale, batteries in
-    "com_height": MEASURED,          # balance the body (no wheels) on a straightedge
-    "n_motors": MEASURED,
-    "stall_torque": GUESS,        # community numbers vary; lever + kitchen scale
-    "no_load_speed": MEASURED,    # sysid_motor.py 2026-08-22: 17.7 deg/s per duty%, linear above ~50%
-    "v_nominal": DATASHEET,       # from the Pybricks reference battery scaling
-    "motor_friction_duty": MEASURED,   # sysid_motor.py: no motion at 10% duty, intercept 7.4%
-    "battery_v": MEASURED,        # 8366-8379 mV across bringup runs
-    "imu_angle_noise": GUESS,     # robot/sysid_imu.py
-    "imu_rate_noise": MEASURED,   # sysid_imu 2026-08-22: bias -0.03, drift ~1 deg/30 s
-    "delay_ctrl_steps": MEASURED, # sysid_latency 2026-08-22: loop jitter <=1 ms, act 15-19 ms
-    "ground_friction": GUESS,
-    "hub_resonance_hz": INFERRED,   # a closed-loop gyro frequency, not a mount
-                                    # measurement -- the flex was never seen
-    "hub_damping_ratio": GUESS,     # ring persists in closed loop -> lightly damped
-    "hub_mass_frac": GUESS,         # weigh the hub separately to settle it
-    "hub_imu_coupling": GUESS,      # calibrated, not measured -- see model.py
-    "motor_backlash_deg": MEASURED,  # by hand; the 1 deg encoder cannot see it
-    "backlash_solref_s": GUESS,     # solver contact stiffness, randomized
-    "encoder_quantum_deg": MEASURED,        # Pybricks returns integer deg
-    "encoder_speed_quantum_dps": MEASURED,  # Pybricks returns integer deg/s
-    "drivetrain_stiffness": MEASURED,   # 2.90 N*m/rad, sysid_backlash_many.py
-                                        # 2026-08-23. The NUMBER is measured;
-                                        # its role in the 11 Hz ring is not.
-    "drivetrain_damping_ratio": GUESS,
-    "drivetrain_stiction_duty": MEASURED,   # 100 trials 2026-08-23
-    "lash_damping": GUESS,
-    "motor_inertia_mult": INFERRED,  # from the measured mode, not weighed
-    "control_hz": MEASURED,       # we set it
-}
+def _assert_all_tagged():
+    missing = [f.name for f in fields(PhysicalParams) if "prov" not in f.metadata]
+    if missing:
+        raise TypeError(
+            f"PhysicalParams fields without provenance metadata: {missing} — "
+            "every parameter carries its own tag; see the module docstring")
+
+
+_assert_all_tagged()
+
+# Derived views. PROVENANCE keeps its old shape for existing callers.
+PROVENANCE = {f.name: f.metadata["prov"] for f in fields(PhysicalParams)}
+SOURCES = {f.name: f.metadata["src"] for f in fields(PhysicalParams)}
 
 
 def nominal_params() -> PhysicalParams:
