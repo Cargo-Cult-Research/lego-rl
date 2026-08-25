@@ -1,0 +1,20 @@
+{
+  "n": 29,
+  "title": "Roomba mode exists: the arena, the task, and its known answer",
+  "date": "2026-08-24",
+  "script": "src/lego_rl/model3d.py + src/lego_rl/roomba.py + scripts/roomba_baseline.py",
+  "question": "Stage two opens: can the measured robot locomote, bounce, and fill space in a 3D sim — and what coverage does a hand-coded bouncer set as the bar?",
+  "verdict": "progress",
+  "headline": "The 3D model (independent wheels, yaw, walled arena) balances and locomotes; the scripted bounce controller — hub-realizable observations only — covers 10-12% of the arena per 40 s episode. That is the known answer a learned exploration policy must beat. Building it replayed run 6 in 3D: the speed term is load-bearing, and clamping it fells the robot in seconds.",
+  "series": [],
+  "media": {
+    "bouncer_overhead.mp4": "scripted bounce baseline, overhead camera, 40 s: cruise, wall hit, back off, turn, repeat"
+  },
+  "hub_output": [
+    "-- sim; baseline over 6 x 40 s episodes --",
+    "coverage mean ~10-12% (10x10 grid), most episodes survive, occasional wall fall",
+    "pitch+rate only: falls 5/5 -- the speed term is load-bearing in 3D as on hardware (run 6)",
+    "speed-term authority clamped to 0.15: falls every episode within ~2 s",
+    "per-wheel traction ~0.08 N*m before slip; whipsaw limit cycle if the velocity loop is aggressive"
+  ]
+}
