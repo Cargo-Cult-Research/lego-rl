@@ -64,6 +64,9 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--randomize", action="store_true",
                     help="sample domain-randomized params (default: nominal)")
+    ap.add_argument("--gain-scale", type=float, default=1.0,
+                    help="scale the classical gains (e.g. 1.11 for the "
+                         "run-22 excess); classical controller only")
     args = ap.parse_args()
     w, h = (int(x) for x in args.size.split("x"))
 
@@ -83,7 +86,9 @@ def main() -> int:
         model = PPO.load(args.policy, device="cpu")
         act = lambda o: model.predict(o.astype(np.float32), deterministic=True)[0]
     else:
-        ctrl = ClassicalController()
+        from lego_rl.classical import SIM_TUNED_GAINS, pybricks_to_si
+        ctrl = ClassicalController(
+            gains_si=pybricks_to_si(SIM_TUNED_GAINS) * args.gain_scale)
         act = lambda o: ctrl.act(o, battery_v=env.p.battery_v)
 
     renderer = mujoco.Renderer(env.model, height=h, width=w)

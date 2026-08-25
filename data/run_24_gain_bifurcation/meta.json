@@ -1,0 +1,20 @@
+{
+  "n": 24,
+  "title": "Run 22's prediction tested: the +11% lives in the fit, and it ignites the deadband",
+  "date": "2026-08-24",
+  "script": "scripts/linear_to_net.py + scripts/render_rollout.py --gain-scale",
+  "question": "Where does the pipeline's +10.8% gain excess live, and does an 11% bump really ignite the backlash limit cycle?",
+  "verdict": "guilty",
+  "headline": "The excess is the numerical FIT (x1.116 uniform; the Q12 quantisation is clean at x0.995) — fixed by pinning the fitted equilibrium Jacobian to the law. And the bifurcation is real: gain x1.11 in the fixed sim gives sigma 1.85x (matching hardware's 1.85x) with duty p90 exploding 17.5% -> 77.3% while the median barely moves.",
+  "series": [],
+  "media": {
+    "gain_100.mp4": "classical law, gain x1.00, nominal plant with backlash, 8 s",
+    "gain_111.mp4": "same law, same seed, gain x1.11 — the ignited limit cycle is visible as wheel rattle"
+  },
+  "hub_output": [
+    "-- sim experiment; numbers from 10 x 10 s nominal episodes per condition --",
+    "gain x1.00: sigma 0.89 deg  duty p50 9.5%  p90 17.5%  >50%: 4.6%  falls 0/10",
+    "gain x1.11: sigma 1.65 deg  duty p50 10.1%  p90 77.3%  >50%: 15.4%  falls 0/10",
+    "hardware (run 22): sigma 1.06 vs 1.95 deg = 1.85x; sim ratio = 1.85x"
+  ]
+}

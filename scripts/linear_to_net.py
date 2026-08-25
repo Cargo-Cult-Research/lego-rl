@@ -102,6 +102,37 @@ def main() -> int:
         if (i + 1) % 1500 == 0:
             print(f"  step {i+1:5d}  loss {loss.item():.3e}")
 
+    # PIN THE EQUILIBRIUM GAIN. Run 22 measured the law-through-pipeline
+    # running +10.8% hot on every basis vector and blamed "one rounded
+    # constant in the Q12 export"; splitting the pipeline showed the Q12 step
+    # is clean (-0.5%) and the excess lives HERE, in the numerical fit: MSE
+    # over a power-law sample distribution puts no constraint on the slope at
+    # the origin, and the fitted net came out uniformly ~11% steep. A control
+    # for the pipeline must implement the law it claims to, so measure the
+    # fitted equilibrium Jacobian against the target and scale the linear
+    # output layer by the uniform excess. Shape is untouched; the per-axis
+    # residual after the rescale is printed and should be within ~1%.
+    with torch.no_grad():
+        eps = 1e-3
+        J = np.zeros(4)
+        for i in range(4):
+            d = np.zeros((1, 4)); d[0, i] = eps
+            hi_ = net(torch.tensor(d * STATE_SCALE * OBS_SCALE, dtype=torch.float32))
+            lo_ = net(torch.tensor(-d * STATE_SCALE * OBS_SCALE, dtype=torch.float32))
+            J[i] = float(hi_ - lo_) / (2 * eps * STATE_SCALE[i])
+        ratios = J / k_si
+        scale = float(np.mean(ratios))
+        print(f"\nequilibrium gain vs law, pre-normalisation: {np.round(ratios, 4)}"
+              f"  (uniform excess {scale:.4f})")
+        net.l3.weight /= scale
+        net.l3.bias /= scale
+        for i in range(4):
+            d = np.zeros((1, 4)); d[0, i] = eps
+            hi_ = net(torch.tensor(d * STATE_SCALE * OBS_SCALE, dtype=torch.float32))
+            lo_ = net(torch.tensor(-d * STATE_SCALE * OBS_SCALE, dtype=torch.float32))
+            J[i] = float(hi_ - lo_) / (2 * eps * STATE_SCALE[i])
+        print(f"after normalisation:                        {np.round(J / k_si, 4)}")
+
     # Accuracy BY BAND: the operating region is what matters, and a single
     # max over a box dominated by saturation hides it.
     print("\nfloat net vs linear law, by commanded-duty band:")

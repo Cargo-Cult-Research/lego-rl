@@ -49,6 +49,7 @@ def test_classical_beats_open_loop():
     # Fixing the premise rather than the threshold.
     import numpy as np
     from lego_rl.classical import pybricks_to_si
+    from lego_rl.gains import GAINS_SIM_TUNED
     # Fully rigid on purpose: this test is about the CONTROLLER, and
     # ClassicalController has no gyro filter. Both compliance models punish an
     # unfiltered rate term, and the drivetrain one does so for a reason we now
@@ -59,7 +60,7 @@ def test_classical_beats_open_loop():
                       param_override={"hub_resonance_hz": 0.0,
                                       "drivetrain_stiffness": 0.0})
     ctrl = ClassicalController(
-        gains_si=pybricks_to_si(np.array([10.71, 0.87, 0.43, 0.30])))
+        gains_si=pybricks_to_si(np.array(GAINS_SIM_TUNED)))
     obs, _ = env.reset(seed=2)
     steps = 0
     while True:
@@ -286,9 +287,10 @@ def test_robot_stands_with_the_slop_it_actually_has():
     import numpy as np
 
     from lego_rl.classical import ClassicalController, pybricks_to_si
+    from lego_rl.gains import GAINS_SIM_TUNED
     from lego_rl.env import BalancerEnv
 
-    gains = pybricks_to_si(np.array([10.71, 0.87, 0.43, 0.30]))
+    gains = pybricks_to_si(np.array(GAINS_SIM_TUNED))
     for half in (0.0, 1.0, 2.5):
         env = BalancerEnv(task="balance", randomize=False, max_seconds=6.0,
                           param_override={"motor_backlash_deg": half})
