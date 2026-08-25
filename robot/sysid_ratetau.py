@@ -1,4 +1,8 @@
-"""Sweep the gyro filter UPWARD: how much rate-channel lag can the robot take?
+"""SysID: sweep OUR gyro filter upward — how much rate lag can the robot take?
+
+(Lives in robot/, not experimental/: hub programs can only import hubconfig/
+gains from robot/ — pybricksdev resolves imports relative to the script's own
+directory. And it feeds the sim calibration, which makes it sysID.)
 
 Run 28 found the strongest sim-real inversion the project has: the hardware
 NEEDS the 30 ms filter (raw gyro fell at 4.0 s, run 16) while the sim cannot

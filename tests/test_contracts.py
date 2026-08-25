@@ -225,3 +225,18 @@ def test_gyro_bias_integrates_into_pitch():
     assert 1.5 < drift_deg < 2.5, (
         f"after 2 s at 1 deg/s bias, measured pitch should lead truth by ~2 "
         f"deg, got {drift_deg:.2f}")
+
+
+def test_hub_programs_that_import_shared_modules_live_in_robot():
+    """pybricksdev resolves imports relative to the SCRIPT's directory, so a
+    hub program importing hubconfig/gains works only from robot/. A sysid
+    sweep placed in experimental/ once shipped with a guaranteed on-hub
+    ImportError; this makes that mistake fail the suite instead."""
+    offenders = []
+    for f in ROOT.glob("experimental/**/*.py"):
+        text = f.read_text(errors="replace")
+        if "from hubconfig import" in text or "from gains import" in text:
+            offenders.append(str(f.relative_to(ROOT)))
+    assert not offenders, (
+        f"hub programs importing shared robot/ modules must live in robot/ "
+        f"(pybricksdev import resolution): {offenders}")
