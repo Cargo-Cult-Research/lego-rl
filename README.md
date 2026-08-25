@@ -1,8 +1,9 @@
 # lego-rl
 
 Sim-to-real RL for a LEGO 42124 rebuilt as a two-wheeled inverted pendulum:
-Technic Hub + both L angular motors, one direct-driving each wheel (no gears,
-no slop), hub mounted low. Runs Pybricks 3.6.1 on the hub; MuJoCo (CPU) + PPO
+Technic Hub + both L angular motors, one direct-driving each wheel (no
+external gears; the motors' internal gearboxes still contribute ~1 deg of
+play each — run 17), hub mounted low. Runs Pybricks 3.6.1 on the hub; MuJoCo (CPU) + PPO
 on the Mac.
 
 The point of the project is the **verifier**: get the classical four-gain
@@ -16,8 +17,9 @@ training, export — against a known answer.
 ## Milestones
 
 - [x] **M0** classical balancer on hardware (`robot/balance_classical.py`) —
-      stands indefinitely at 1.50° pitch RMS / 3.6° peak; the residual ring was
-      traced to mechanical compliance and largely fixed by bracing
+      stands indefinitely (sigma ~1.0° about the segment mean, run 22); the
+      residual ring was cut 81% by bracing (run 12) and finally attributed to
+      the gearbox deadband (runs 17, 24)
 - [x] **M1** sim credibility — with *measured* parameters the published
       reference gains fail here, and CEM in-sim retuning gives
       `(10.71, 0.87, 0.43, 0.30)`; see "What the verifier caught" below
@@ -26,15 +28,19 @@ training, export — against a known answer.
       still outstanding
 - [x] **M3** PPO balancer in sim (`scripts/train_ppo.py`) — 100% of full 10 s
       episodes under domain randomization, peak drift 7 cm, returns to 3 cm
+      (trained before the wheel-contact and backlash sim fixes of 2026-08-24;
+      a retrain on the fixed plant is pending)
 - [x] **M4** verifier: policy Jacobian ≈ classical gains (`scripts/linearize.py`)
       — signs all agree; after removing a uniform 0.66× scale the feedback
       *shape* matches the CEM controller within 2% (pitch rate) and 6% (wheel
       rate), with wheel position 2× low. See "The verifier's verdict" below
 - [x] **M5** deploy: the learned policy balances on hardware at a full 200 Hz
       (`scripts/export_policy.py`, `scripts/make_fast_policy.py`,
-      `robot/balance_policy.py`) — **1.17° pitch RMS, zero duty clamping**,
-      after an 11× inference speedup and one filter that the sim should have
-      taught it
+      `robot/balance_policy.py`), after an 11× inference speedup and one
+      filter that the sim should have taught it. It does **not** beat the
+      classical controller (run 18) — and run 22/24 found the export pipeline
+      was adding +11% loop gain to whatever passed through it, since fixed;
+      the post-fix rerun is still to be done
 - [ ] **M6** swing-up from lying flat — the task linear feedback cannot do
       (`scripts/train_ppo.py --task swingup`)
 
@@ -48,18 +54,24 @@ uv venv --python 3.12 && uv pip install -e ".[dev]"
 .venv/bin/python scripts/train_ppo.py                 # M3 (~2M steps)
 .venv/bin/python scripts/linearize.py runs/ppo_balance_seed0.zip   # M4
 .venv/bin/python scripts/export_policy.py runs/ppo_balance_seed0.zip  # M5
-.venv/bin/python scripts/view.py [--policy runs/....zip]  # watch it
+.venv/bin/python scripts/view.py [--policy runs/....zip]  # watch it live
+.venv/bin/python scripts/render_rollout.py out.mp4 [--policy ...]  # film it
+.venv/bin/python scripts/check_labbook.py             # lab book consistent?
 ```
 
-## Where it is right now (2026-08-22)
+## Where it is right now (2026-08-24)
 
-**It balances.** With the configuration in `robot/balance_classical.py` the
-robot stands indefinitely and holds station to within a couple of centimetres,
-at **1.50° pitch RMS and 3.6° peak** over a 10 s window. The first hardware
+**It balances.** With the configuration in `robot/hubconfig.py` +
+`robot/gains.py` the robot stands indefinitely and holds station to within a
+couple of centimetres, at **sigma ≈ 1.0° about the segment mean** (run 22,
+120 s continuous; the drift-immune statistic run 20 forced — the older
+"1.50° RMS" headline was RMS about a drifting reference and is not
+reproducible from run 12's own hub output). The first hardware
 run was 14 Hz at ±12°, duty pinned to the rail 58% of the time, and a fall
 into the furniture.
 
-Twelve hardware runs are recorded in `data/run_NN_*/`, each with its raw
+Twenty-four runs are recorded in `data/run_NN_*/` (hardware and, since run
+23, sim), each with its raw
 telemetry, the question it was meant to settle, and what it actually showed —
 including the null runs and the six hypotheses that turned out wrong. The
 write-up renders from those directories (`scripts/build_page.py`).
@@ -112,8 +124,11 @@ the gearbox, meaning the robot at its usual ~12% mean duty runs
 *stiction-locked and effectively rigid*. And **the two motors differ nearly 2×**
 in compliance.
 
-Current: **1.50° pitch RMS, 3.6° peak over 10 s** with the classical
-controller; **1.17°** with the learned policy.
+Current: **sigma ≈ 1.06°** (classical, run 22, drift-immune statistic).
+The learned policy's honest standing: run 18 measured classical quieter in
+5 of 6 paired cycles — but every pre-run-24 comparison sent the policy
+through a pipeline that added +11% loop gain (found by run 22's ABBA,
+traced and fixed in run 24), so the comparison deserves a rerun.
 
 ## The policy on the robot (M5)
 
@@ -159,6 +174,10 @@ to bracket drift.
 Identical policy, identical rate, batteries two millivolts apart. The filter is
 the only difference and it is worth 6.3×. Battery drift across the session was
 10 mV, so the confound that made the previous run uninterpretable is gone.
+(Caveat added after run 20: the RMS column in this table is taken about the
+arm-time reference, which drifts with gyro bias — treat the *relative*
+comparison as meaningful, not the absolute numbers; the drift-immune sigma
+statistic exists from run 20 onward.)
 
 **"Learned beats classical" was not established, and run 18 settled it: it
 doesn't.** Switching the controller back and forth inside one continuous
@@ -176,9 +195,11 @@ weak in simulation, cashing out as a robot that wanders off. A specific
 real-world failure predicted from one number is what the project exists to
 test.
 
-They also fail differently in character: the policy never saturates its duty
-limit (0% median) while classical rides it 18% of the time. Gentle and drifting
-versus aggressive and station-keeping.
+They also fail differently in character: the policy commanded far less duty
+than classical in run 18. (The duty-clamp statistics from that era are
+tainted: MAX_DUTY=40 had no valid provenance and both controllers were found
+riding it — run 20 — so the clamp was removed; run 22 ran unclamped with
+clamp_pct 0 throughout.)
 
 The gyro filter remains a patch over a known sim-to-real gap — the right fix is
 to put the drivetrain compliance in the simulator so the policy learns to
@@ -225,8 +246,10 @@ answer *before* the hardware did, and was right.
 | battery_v range | `hub.battery.voltage()` fresh vs dying | measured |
 | stall_torque | lever arm + kitchen scale at duty=100 | **guess** |
 | axle_half_width, imu_angle_noise, ground_friction | calipers / still-hub log / coast-down | **guess** |
+| backlash_solref_s, lash_damping, drivetrain_damping_ratio, hub_* | solver/damping knobs — randomized wide, see `params.py` metadata | **guess** |
 
-Update the number **and** its provenance tag in `PROVENANCE`.
+Update the number **and** its provenance tag — both live in the field's
+`metadata` in `src/lego_rl/params.py`; an untagged field fails at import.
 
 ## Design notes
 
