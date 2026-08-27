@@ -5,10 +5,11 @@ networks we want next, with list inputs. Run it on the
 Technic Hub over pybricksdev; needs no motors and nothing attached.
 
 Numbers to beat (run 14, MicroPython Q12 fully unrolled): 1607 us for
-(4, 8, 8, 1). The C module should land near single-digit us for that net.
+(4, 8, 8, 1). Measured 2026-08-26 (run 33): 100 us -- the floor is call
+overhead, not math; see data/run_33_mlp_c_inference_bench.
 """
 
-import struct
+import ustruct as struct
 
 from pybricks.tools import StopWatch
 from pybricks.experimental import MLP

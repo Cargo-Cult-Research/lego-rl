@@ -1,0 +1,16 @@
+{
+  "n": 33,
+  "title": "C inference on the hub: 16x over Q12, swing-up net now fits the budget",
+  "date": "2026-08-26",
+  "script": "firmware/hub_bench_mlp.py on custom firmware pybricks-technichub-v3.6.1-mlp.zip",
+  "question": "What does pybricks.experimental.MLP (C forward pass, custom firmware) actually cost per call on the Technic Hub, and does a trotter-scale net fit in 64K RAM?",
+  "verdict": "progress",
+  "headline": "4-8-8-1 runs at 100 us/call vs 1607 us for the fully unrolled Q12 MicroPython (16x, 2% of the 2 ms loop budget). 4-32-32-1 -- the swing-up net that was 9x OVER budget in MicroPython -- now runs at 365 us (18% of budget). 30-64-64-12 MemoryErrors at construction (6924 float32 params + program on the 64K hub), settling it empirically: trotter-scale needs a SPIKE-class hub. The ~100 us floor is call machinery (arg conversion, boxing, dispatch), not math: 28x more MACs only tripled the time.",
+  "series": [],
+  "media": {},
+  "hub_output": [
+    "(4, 8, 8, 1) 100 us/call",
+    "(4, 32, 32, 1) 365 us/call",
+    "(30, 64, 64, 12) MemoryError constructing 6924 params"
+  ]
+}

@@ -61,5 +61,5 @@ docker run --rm -v ~/code/pybricks-micropython:/work ubuntu:22.04 bash -c '...'
 - Stock v3.6.1 firmware: 208,512 bytes text. With MLP module: 210,104 of
   212,992 — the module costs **1,592 bytes**, 2.8K headroom left.
 - User storage caps the weight blob: 4-32-32-1 float32 is ~5K, fits with the
-  program; trotter-scale (30-64-64-12, ~28K) does not — that robot needs a
+  program; trotter-scale (30-64-64-12, ~28K) does not (run 33: MemoryError) — that robot needs a
   SPIKE-class hub anyway (>4 motor ports, 320K RAM).
