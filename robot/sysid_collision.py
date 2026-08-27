@@ -9,9 +9,10 @@ Protocol per segment (LED is the interface; sweep is safest-first):
 
   RED      stand the robot up ~1.5 m from the object, hold still
   GREEN    station-keeping, settling (1.5 s) -- release gently
-  CYAN     accelerating toward the object; triggers NOT yet armed
-  WHITE    at speed and settled: triggers armed (a hit before WHITE will
-           not register -- give the fast segments more runway)
+  CYAN     accelerating toward the object; fast triggers not yet armed
+  WHITE    at speed, wobble calibrated: triggers armed (~0.4 s after
+           reaching speed; a hit while still CYAN is caught late by the
+           wall-press backstop instead of voiding)
   MAGENTA  impact detected: recovery window (1 s, station-keep at the
            bounce point), still recording
   YELLOW   capture done, still balancing -- GRAB THE ROBOT (either tilting
@@ -28,10 +29,13 @@ not print a buffer.
 Wall-hit detection is hub-blind, as the future policy's will be: a raw
 pitch-rate spike (2 consecutive ticks) OR wheel speed collapsing below
 half the reference for 50 ms (the sim bouncer's signature,
-scripts/roomba_baseline.py). Triggers arm (CYAN -> WHITE) only after the
-MEASURED speed has held the target band with the pitch rate below the
-trigger level for GRACE_MS straight -- the launch lean and its wobble
-look exactly like impacts and false-triggered two field sessions.
+scripts/roomba_baseline.py). The rate trigger is SELF-CALIBRATED: after
+the measured speed reaches the target band, the wobble is watched for
+CAL_MS and the trigger set RATE_MARGIN above it (floor RATE_TRIG), then
+armed (CYAN -> WHITE). Fixed thresholds failed both ways in the field:
+the launch lean false-triggered, and quiet-hold arming never armed on a
+2 m runway. A hit before arming is caught by the wall-press backstop
+(wheels pinned near zero against a high reference for 300 ms).
 
 Speeds sweep 300..750 deg/s of wheel (~0.13..0.33 m/s), 3 reps each,
 ascending within each rep. The operator varies the OBJECT and APPROACH
@@ -62,12 +66,18 @@ V_TARGETS = (300, 450, 600, 750)  # deg/s of wheel, ascending = safest first
 REPS = 3
 SETTLE_MS = 1500
 SLEW = 150        # deg/s^2 -- halved after field session 2: 300 launched wobbly
-AT_SPEED_FRAC = 0.8   # measured speed must stay above this fraction of target
-GRACE_MS = 600        # quiet-hold length before triggers arm (see cruise phase)
-RATE_TRIG = 80    # deg/s raw pitch rate...
-RATE_TICKS = 2    # ...for 2 consecutive ticks = impact (rejects IMU spikes)
+AT_SPEED_FRAC = 0.8   # measured speed reaching this fraction of target...
+CAL_MS = 400          # ...starts calibration: cruise wobble is measured for
+                      # this long, then the rate trigger is set above it
+RATE_TRIG = 80    # deg/s -- FLOOR for the self-calibrated rate trigger
+RATE_MARGIN = 1.5     # trigger = max(RATE_TRIG, MARGIN * measured wobble)
+RATE_TICKS = 2    # rate over trigger for 2 ticks = impact (rejects spikes)
 STALL_FRAC = 0.5  # speed below this fraction of vref...
 STALL_TICKS = 10  # ...for 50 ms = impact
+WALL_VREF = 250   # backstop for hits BEFORE arming: once v_ref is past
+WALL_FRAC = 0.2   # this, speed under this fraction of v_ref...
+WALL_TICKS = 60   # ...for 300 ms = pressed against something. Late by
+                  # ~300 ms, so the impact sits mid-window in the printout.
 PICKUP_SPEED = 500    # deg/s sustained in the YELLOW await-grab state...
 PICKUP_TICKS = 30     # ...for 150 ms = lifted (unloaded wheels run away)
 MAX_TRAVEL = 5000       # deg of wheel from cruise start (~2.1 m): void
@@ -90,7 +100,7 @@ print("battery mV:", hub.battery.voltage())
 print("gains:", K_ANGLE, K_RATE, K_MOTOR, K_SPEED, "tau:", RATE_TAU_MS,
       "slew:", SLEW, "trig: rate>", RATE_TRIG, "or stall<", STALL_FRAC)
 print("targets deg/s:", V_TARGETS, "x", REPS, "reps, ascending")
-print("S,seg,v_target,battery_mV,hit,fell,v_at_trig,peak_rate,peak_pitch_x10,recov_sigma_x100")
+print("S,seg,v_target,battery_mV,hit,fell,v_at_trig,peak_rate,peak_pitch_x10,recov_sigma_x100,trig_eff")
 print("D,i,pitch_x100,rate_x10,yaw_x10,wl,wr,duty_x10,vref")
 
 watch = StopWatch()
@@ -126,7 +136,10 @@ for seg in range(len(V_TARGETS) * REPS):
     rate_hi = 0
     pickup = 0
     armed = 0
-    t_at_speed = -1    # start of the current quiet at-speed hold
+    wall = 0
+    cal_max = 0.0      # largest |rate| seen in the calibration window
+    trig_eff = RATE_TRIG
+    t_at_speed = -1    # when measured speed first reached the target band
     recov_sum = 0.0
     recov_sq = 0.0
     recov_n = 0
@@ -168,27 +181,36 @@ for seg in range(len(V_TARGETS) * REPS):
         elif phase == 1:
             if v_ref < v_target:
                 v_ref = min(v_target, v_ref + SLEW * DT / 1000)
-            # Arm only after a QUIET at-speed hold: measured speed in the
-            # target band AND pitch rate below the trigger level,
-            # continuously for GRACE_MS. Field sessions 1-2: the launch
-            # lean and its wobble look exactly like impacts, so any wobble
-            # resets the hold -- an armed trigger can then only fire on a
-            # disturbance bigger than anything cruising produced. Once
-            # armed, stays armed (WHITE LED).
+            # Self-calibrating arm. Waiting for the wobble to die down
+            # (field sessions 2-3) never armed on short runway: cruise
+            # wobble on this floor sits near any fixed threshold. So once
+            # the measured speed first reaches the target band, MEASURE
+            # the wobble for CAL_MS and set the rate trigger a margin
+            # above what cruising actually produces, then arm (WHITE).
+            # Arming now takes a fixed ~CAL_MS after reaching speed.
             if not armed:
-                steady = (speed > AT_SPEED_FRAC * v_target
-                          and abs(rate_raw) < RATE_TRIG)
-                if not steady:
-                    t_at_speed = -1
-                elif t_at_speed < 0:
-                    t_at_speed = t
-                if t_at_speed >= 0 and t - t_at_speed > GRACE_MS:
-                    armed = 1
-                    hub.light.on(Color.WHITE)
+                if t_at_speed < 0:
+                    if speed > AT_SPEED_FRAC * v_target:
+                        t_at_speed = t
+                else:
+                    ar_now = abs(rate_raw)
+                    if ar_now > cal_max:
+                        cal_max = ar_now
+                    if t - t_at_speed > CAL_MS:
+                        trig_eff = max(RATE_TRIG, int(RATE_MARGIN * cal_max))
+                        armed = 1
+                        hub.light.on(Color.WHITE)
             if armed:
                 stall = stall + 1 if speed < STALL_FRAC * v_ref else 0
-                rate_hi = rate_hi + 1 if abs(rate_raw) > RATE_TRIG else 0
-            if armed and (rate_hi >= RATE_TICKS or stall >= STALL_TICKS):
+                rate_hi = rate_hi + 1 if abs(rate_raw) > trig_eff else 0
+            # Backstop, live from mid-slew whether armed or not: wheels
+            # held near zero against a high reference for 300 ms is the
+            # robot pressing on something it already hit. Catches hits
+            # that land before arming instead of voiding the segment.
+            if v_ref >= WALL_VREF:
+                wall = wall + 1 if abs(speed) < WALL_FRAC * v_ref else 0
+            if (armed and (rate_hi >= RATE_TICKS or stall >= STALL_TICKS)
+                    or wall >= WALL_TICKS):
                 hit = 1
                 phase = 2
                 trig_write = writes
@@ -260,7 +282,8 @@ for seg in range(len(V_TARGETS) * REPS):
     else:
         recov_sigma = -1
     print("S,", seg, ",", v_target, ",", batt, ",", hit, ",", fell, ",",
-          v_at_trig, ",", peak_rate, ",", int(10 * peak_pitch), ",", recov_sigma)
+          v_at_trig, ",", peak_rate, ",", int(10 * peak_pitch), ",",
+          recov_sigma, ",", trig_eff)
 
     if hit or (fell and phase < 3):
         n_stored = writes if writes < BUF_N else BUF_N
