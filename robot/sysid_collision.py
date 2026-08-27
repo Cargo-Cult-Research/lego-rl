@@ -9,7 +9,9 @@ Protocol per segment (LED is the interface; sweep is safest-first):
 
   RED      stand the robot up ~1.5 m from the object, hold still
   GREEN    station-keeping, settling (1.5 s) -- release gently
-  CYAN     cruising toward the object at this segment's wheel-speed target
+  CYAN     accelerating toward the object; triggers NOT yet armed
+  WHITE    at speed and settled: triggers armed (a hit before WHITE will
+           not register -- give the fast segments more runway)
   MAGENTA  impact detected: recovery window (1 s, station-keep at the
            bounce point), still recording
   YELLOW   capture done, still balancing -- GRAB THE ROBOT (either tilting
@@ -26,9 +28,10 @@ not print a buffer.
 Wall-hit detection is hub-blind, as the future policy's will be: a raw
 pitch-rate spike (2 consecutive ticks) OR wheel speed collapsing below
 half the reference for 50 ms (the sim bouncer's signature,
-scripts/roomba_baseline.py). Triggers arm only after the MEASURED speed
-has held the target band for GRACE_MS -- the launch lean looks exactly
-like an impact and false-triggered when arming keyed off v_ref alone.
+scripts/roomba_baseline.py). Triggers arm (CYAN -> WHITE) only after the
+MEASURED speed has held the target band with the pitch rate below the
+trigger level for GRACE_MS straight -- the launch lean and its wobble
+look exactly like impacts and false-triggered two field sessions.
 
 Speeds sweep 300..750 deg/s of wheel (~0.13..0.33 m/s), 3 reps each,
 ascending within each rep. The operator varies the OBJECT and APPROACH
@@ -58,17 +61,17 @@ ALPHA = DT / (RATE_TAU_MS + DT)
 V_TARGETS = (300, 450, 600, 750)  # deg/s of wheel, ascending = safest first
 REPS = 3
 SETTLE_MS = 1500
-SLEW = 300        # deg/s^2 -- gentle enough that the cruise lean stays small
-AT_SPEED_FRAC = 0.8   # measured speed must reach this fraction of target...
-GRACE_MS = 600        # ...and hold for this long before triggers arm
+SLEW = 150        # deg/s^2 -- halved after field session 2: 300 launched wobbly
+AT_SPEED_FRAC = 0.8   # measured speed must stay above this fraction of target
+GRACE_MS = 600        # quiet-hold length before triggers arm (see cruise phase)
 RATE_TRIG = 80    # deg/s raw pitch rate...
 RATE_TICKS = 2    # ...for 2 consecutive ticks = impact (rejects IMU spikes)
 STALL_FRAC = 0.5  # speed below this fraction of vref...
 STALL_TICKS = 10  # ...for 50 ms = impact
 PICKUP_SPEED = 500    # deg/s sustained in the YELLOW await-grab state...
 PICKUP_TICKS = 30     # ...for 150 ms = lifted (unloaded wheels run away)
-MAX_TRAVEL = 4000       # deg of wheel from cruise start (~1.7 m): void
-CRUISE_TIMEOUT_MS = 10000
+MAX_TRAVEL = 5000       # deg of wheel from cruise start (~2.1 m): void
+CRUISE_TIMEOUT_MS = 15000
 PRE_N = 100       # ring buffer: 0.5 s before the trigger
 POST_N = 200      # and 1.0 s after
 BUF_N = PRE_N + POST_N
@@ -122,7 +125,8 @@ for seg in range(len(V_TARGETS) * REPS):
     stall = 0
     rate_hi = 0
     pickup = 0
-    t_at_speed = -1    # when measured speed first reached the target band
+    armed = 0
+    t_at_speed = -1    # start of the current quiet at-speed hold
     recov_sum = 0.0
     recov_sq = 0.0
     recov_n = 0
@@ -164,13 +168,23 @@ for seg in range(len(V_TARGETS) * REPS):
         elif phase == 1:
             if v_ref < v_target:
                 v_ref = min(v_target, v_ref + SLEW * DT / 1000)
-            # Arm only once the MEASURED speed has been at target for
-            # GRACE_MS. During the slew the robot leans in and its speed
-            # lags v_ref, which looks exactly like an impact -- arming on
-            # v_ref alone false-triggered instantly (first field session).
-            if t_at_speed < 0 and speed > AT_SPEED_FRAC * v_target:
-                t_at_speed = t
-            armed = t_at_speed >= 0 and t - t_at_speed > GRACE_MS
+            # Arm only after a QUIET at-speed hold: measured speed in the
+            # target band AND pitch rate below the trigger level,
+            # continuously for GRACE_MS. Field sessions 1-2: the launch
+            # lean and its wobble look exactly like impacts, so any wobble
+            # resets the hold -- an armed trigger can then only fire on a
+            # disturbance bigger than anything cruising produced. Once
+            # armed, stays armed (WHITE LED).
+            if not armed:
+                steady = (speed > AT_SPEED_FRAC * v_target
+                          and abs(rate_raw) < RATE_TRIG)
+                if not steady:
+                    t_at_speed = -1
+                elif t_at_speed < 0:
+                    t_at_speed = t
+                if t_at_speed >= 0 and t - t_at_speed > GRACE_MS:
+                    armed = 1
+                    hub.light.on(Color.WHITE)
             if armed:
                 stall = stall + 1 if speed < STALL_FRAC * v_ref else 0
                 rate_hi = rate_hi + 1 if abs(rate_raw) > RATE_TRIG else 0
