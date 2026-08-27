@@ -12,8 +12,9 @@ Protocol per segment (LED is the interface; sweep is safest-first):
   CYAN     cruising toward the object at this segment's wheel-speed target
   MAGENTA  impact detected: recovery window (1 s, station-keep at the
            bounce point), still recording
-  YELLOW   capture done, still balancing -- GRAB THE ROBOT (tilting it past
-           FALL_DEG during the grab is the normal way segments end)
+  YELLOW   capture done, still balancing -- GRAB THE ROBOT (either tilting
+           it past FALL_DEG or just lifting it ends the segment: unloaded
+           wheels spinning up is recognized as a pickup)
   BLUE     motors off, buffer printing (~300 lines), then next segment: RED
 
 A fall during cruise or recovery is data, not failure: the buffer prints
@@ -23,8 +24,11 @@ anything, the segment voids ("no-hit"), goes YELLOW for the grab, and does
 not print a buffer.
 
 Wall-hit detection is hub-blind, as the future policy's will be: a raw
-pitch-rate spike OR wheel speed collapsing below half the slewed reference
-for 50 ms (the sim bouncer's signature, scripts/roomba_baseline.py).
+pitch-rate spike (2 consecutive ticks) OR wheel speed collapsing below
+half the reference for 50 ms (the sim bouncer's signature,
+scripts/roomba_baseline.py). Triggers arm only after the MEASURED speed
+has held the target band for GRACE_MS -- the launch lean looks exactly
+like an impact and false-triggered when arming keyed off v_ref alone.
 
 Speeds sweep 300..750 deg/s of wheel (~0.13..0.33 m/s), 3 reps each,
 ascending within each rep. The operator varies the OBJECT and APPROACH
@@ -55,10 +59,14 @@ V_TARGETS = (300, 450, 600, 750)  # deg/s of wheel, ascending = safest first
 REPS = 3
 SETTLE_MS = 1500
 SLEW = 300        # deg/s^2 -- gentle enough that the cruise lean stays small
-GRACE_MS = 600    # after reaching target speed, before triggers arm
-RATE_TRIG = 80    # deg/s raw pitch rate = impact
+AT_SPEED_FRAC = 0.8   # measured speed must reach this fraction of target...
+GRACE_MS = 600        # ...and hold for this long before triggers arm
+RATE_TRIG = 80    # deg/s raw pitch rate...
+RATE_TICKS = 2    # ...for 2 consecutive ticks = impact (rejects IMU spikes)
 STALL_FRAC = 0.5  # speed below this fraction of vref...
 STALL_TICKS = 10  # ...for 50 ms = impact
+PICKUP_SPEED = 500    # deg/s sustained in the YELLOW await-grab state...
+PICKUP_TICKS = 30     # ...for 150 ms = lifted (unloaded wheels run away)
 MAX_TRAVEL = 4000       # deg of wheel from cruise start (~1.7 m): void
 CRUISE_TIMEOUT_MS = 10000
 PRE_N = 100       # ring buffer: 0.5 s before the trigger
@@ -112,6 +120,9 @@ for seg in range(len(V_TARGETS) * REPS):
     peak_rate = 0
     peak_pitch = 0.0
     stall = 0
+    rate_hi = 0
+    pickup = 0
+    t_at_speed = -1    # when measured speed first reached the target band
     recov_sum = 0.0
     recov_sq = 0.0
     recov_n = 0
@@ -133,6 +144,18 @@ for seg in range(len(V_TARGETS) * REPS):
             fell = 0 if (phase == 3 or (phase == 2 and capture_done)) else 1
             break
 
+        # Lifting the robot near-upright never crosses FALL_DEG, but the
+        # unloaded wheels run away under the balance law (first field
+        # session: it spun in the operator's hand). Sustained high wheel
+        # speed while nominally station-keeping in the await-grab state
+        # means it is airborne: end the segment cleanly.
+        if phase == 3 or (phase == 2
+                          and trig_write >= 0
+                          and writes >= trig_write + POST_N):
+            pickup = pickup + 1 if abs(speed) > PICKUP_SPEED else 0
+            if pickup >= PICKUP_TICKS:
+                break   # grabbed; fell stays 0
+
         # --- phase transitions ---------------------------------------------
         if phase == 0 and t > SETTLE_MS:
             phase = 1
@@ -141,9 +164,17 @@ for seg in range(len(V_TARGETS) * REPS):
         elif phase == 1:
             if v_ref < v_target:
                 v_ref = min(v_target, v_ref + SLEW * DT / 1000)
-            armed = v_ref >= v_target and t - t_cruise > GRACE_MS
-            stall = stall + 1 if speed < STALL_FRAC * v_ref else 0
-            if armed and (abs(rate_raw) > RATE_TRIG or stall >= STALL_TICKS):
+            # Arm only once the MEASURED speed has been at target for
+            # GRACE_MS. During the slew the robot leans in and its speed
+            # lags v_ref, which looks exactly like an impact -- arming on
+            # v_ref alone false-triggered instantly (first field session).
+            if t_at_speed < 0 and speed > AT_SPEED_FRAC * v_target:
+                t_at_speed = t
+            armed = t_at_speed >= 0 and t - t_at_speed > GRACE_MS
+            if armed:
+                stall = stall + 1 if speed < STALL_FRAC * v_ref else 0
+                rate_hi = rate_hi + 1 if abs(rate_raw) > RATE_TRIG else 0
+            if armed and (rate_hi >= RATE_TICKS or stall >= STALL_TICKS):
                 hit = 1
                 phase = 2
                 trig_write = writes
