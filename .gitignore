@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 firmware/*.zip
 MUJOCO_LOG.TXT
+data/hub_logs/

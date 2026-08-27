@@ -1,0 +1,30 @@
+{
+  "n": 35,
+  "title": "First real impact traces: 12/12 captured, classical recovery is a coin flip, and the speed sweep collapsed",
+  "date": "2026-08-27",
+  "script": "robot/sysid_collision.py",
+  "question": "What does a real collision look like at 200 Hz (pitch/rate/yaw/wheels/duty), and how often does the classical balancer recover from it -- the anchor data for fitting sim contacts before training the speed-chaser policy?",
+  "verdict": "progress",
+  "headline": "All 12 segments captured a hit (zero voids; self-calibrated rate triggers landed at 260-390 deg/s, 3-5x the old fixed 80 floor -- vindicating calibration over quiet-hold). Head-on signature: wheels 850->0 deg/s in ~90 ms, pitch whips to ~300 deg/s and ~24 deg excursion, recovery slams full reverse. Classical recovery: 5/12 falls. The 45-deg glancing hit (seg 11) reads clearly as the left wheel decaying 190 ms before the right, with roughly half the peak rate and pitch of head-on. BUT the speed sweep collapsed: cruise duty limit-cycles rail-to-rail at ~9 Hz and mean wheel speed sits at 640-890 deg/s regardless of the 300-750 target -- the classical law cannot track cruise speed on this floor, so all impacts landed at ~0.27-0.38 m/s. Speed control is itself an open problem the policy has to solve.",
+  "series": [],
+  "media": {"full_trace": "hub_output.log", "analysis": "analyze.py"},
+  "hub_output": [
+    "battery mV: 7514",
+    "gains: 10.71 0.87 0.43 0.3 tau: 30 slew: 150 trig: rate> 80 or stall< 0.5",
+    "targets deg/s: (300, 450, 600, 750) x 3 reps, ascending",
+    "S,seg,v_target,battery_mV,hit,fell,v_at_trig,peak_rate,peak_pitch_x10,recov_sigma_x100,trig_eff",
+    "S, 0 , 300 , 7512 , 1 , 0 , 854 , 605 , 296 , 1349 , 362",
+    "S, 1 , 450 , 7435 , 1 , 0 , 865 , 583 , 370 , 1637 , 338",
+    "S, 2 , 600 , 7419 , 1 , 1 , 806 , 663 , 447 , 1543 , 362",
+    "S, 3 , 750 , 7418 , 1 , 0 , 950 , 533 , 415 , 2139 , 335",
+    "S, 4 , 300 , 7414 , 1 , 0 , -550 , 401 , 204 , 942 , 386",
+    "S, 5 , 450 , 7410 , 1 , 1 , 849 , 671 , 444 , 1909 , 290",
+    "S, 6 , 600 , 7405 , 1 , 1 , 909 , 689 , 445 , 1647 , 365",
+    "S, 7 , 750 , 7403 , 1 , 1 , 922 , 689 , 444 , 2002 , 260",
+    "S, 8 , 300 , 7400 , 1 , 0 , 872 , 514 , 317 , 1406 , 390",
+    "S, 9 , 450 , 7396 , 1 , 0 , 846 , 685 , 310 , 1303 , 352",
+    "S, 10 , 600 , 7393 , 1 , 1 , 878 , 539 , 449 , 1660 , 366",
+    "S, 11 , 750 , 7389 , 1 , 0 , -276 , 292 , 168 , 801 , 300",
+    "END (full 3600-line trace in hub_output.log)"
+  ]
+}

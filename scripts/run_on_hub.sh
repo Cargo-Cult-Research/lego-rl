@@ -15,8 +15,15 @@ SCRIPT="$1"
 TRIES="${2:-30}"
 ERR=$(mktemp)
 trap 'rm -f "$ERR"' EXIT
+# Every session is also logged to a file (gitignored scratch; filing a run
+# copies the log into data/run_NN_*/). Copy-pasting a 3600-line session out
+# of the terminal once was enough.
+LOG="data/hub_logs/$(date +%Y%m%d_%H%M%S)_$(basename "$SCRIPT" .py).log"
+mkdir -p data/hub_logs
+echo "logging to $LOG" >&2
+set -o pipefail
 for i in $(seq 1 "$TRIES"); do
-  PYTHONUNBUFFERED=1 "$PBD" run ble "$SCRIPT" 2>"$ERR"
+  PYTHONUNBUFFERED=1 "$PBD" run ble "$SCRIPT" 2>"$ERR" | tee -a "$LOG"
   RC=$?
   if [ $RC -eq 0 ] && ! grep -qE 'TimeoutError|BleakError|disconnected' "$ERR"; then
     exit 0
