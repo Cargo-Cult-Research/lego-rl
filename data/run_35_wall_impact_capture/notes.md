@@ -73,6 +73,18 @@ number the policy has to beat, at higher commanded speed.
 
 1. Reproduce the cruise limit cycle in sim with the same law (motor/
    friction check) — before touching contacts.
+   **ANSWERED same day, and the answer is no** (`scripts/sim_cruise_check.py`):
+   with the robot's actual config (30 ms rate filter) the sim classical
+   falls in ~3 s even station-keeping — run 28's lag-fragility anchor,
+   reconfirmed. Filter off, it stands but the tracking failure is
+   target-DEPENDENT (433 @ 300, ~1000 @ 750), unlike the real robot's
+   target-independent 640–890. A suspect sweep (same script's probe)
+   points at the pendulum time constant: delay 0 survives, and
+   com_height 0.07–0.09 survives WITH the filter — the box model's
+   inertia from the measured 5 cm com is likely underestimating I (the
+   hub + batteries ride high). Contact fitting is BLOCKED behind fixing
+   that: the plan is a free-topple probe (motors off, IMU at 200 Hz),
+   replicated exactly in sim, fitting effective inertia + stiction.
 2. Fit MuJoCo contact params (solref/solimp/restitution + wall) to the
    head-on signature: wheels-to-zero in ~90 ms, -300 deg/s pitch whip,
    24 deg excursion.
