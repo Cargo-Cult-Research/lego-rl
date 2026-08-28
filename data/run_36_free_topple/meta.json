@@ -1,0 +1,25 @@
+{
+  "n": 36,
+  "title": "Free topple: the sim's pendulum is RIGHT (lambda 7.46 vs 7.74 locked) -- inertia is not the lag-fragility",
+  "date": "2026-08-27",
+  "script": "robot/sysid_topple.py",
+  "question": "Is the sim plant's pendulum time constant wrong (box-model inertia from the measured 5 cm com), and is that why the filtered classical stands on hardware but falls in sim (run 28, reconfirmed after run 35)?",
+  "verdict": "ruled-out",
+  "headline": "8 topples, motors coasting: wheels stayed stiction-locked (roll +-1-2 deg), lambda = 7.46 +- 0.3 1/s by the energy fit (omega^2 vs cos theta). Replicating the identical experiment in sim -- locked drivetrain via wheel-joint frictionloss -- gives 7.74, a 4% match; the sim's t(2->45 deg) of 560 ms sits inside the real 440-575 ms spread. So the box model's inertia is fine and the com suspect is RULED OUT: the free-wheel plant (lambda 11.7) vs locked plant (7.5) split was the earlier confusion. Follow-up single-parameter fixes for the lag-fragility all REFUTED in sim: wheel-joint stiction 0.05-0.2 N*m (still falls), reduced delay (5 ms already kills it at any stiction; hardware stands with ~19 ms), pitch damping as a tire-patch proxy (helps only at an implausible 40% of critical, at 80% mean duty). The sim-real mismatch is structural and multi-dimensional -> switch from one-suspect-at-a-time to a joint multi-probe fit.",
+  "series": [],
+  "media": {"full_trace": "hub_output.log", "analysis": "analyze.py"},
+  "hub_output": [
+    "battery mV: 7594",
+    "topple probe: motors coasting, window 3 s, reps 8",
+    "R,rep,battery_mV,n_rows,t45_ms,roll_deg",
+    "R, 0 , 7591 , 113 , 310 , -1",
+    "R, 1 , 7587 , 485 , 2160 , 1",
+    "R, 2 , 7588 , 157 , 525 , -2",
+    "R, 3 , 7587 , 162 , 545 , 1",
+    "R, 4 , 7587 , 155 , 510 , -2",
+    "R, 5 , 7586 , 168 , 575 , 1",
+    "R, 6 , 7586 , 140 , 440 , -1",
+    "R, 7 , 7586 , 166 , 565 , 1",
+    "END (full 1547-row trace in hub_output.log)"
+  ]
+}
