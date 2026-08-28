@@ -1,31 +1,30 @@
 {
   "generation": 39,
-  "loss": 50.67397506379208,
+  "loss": 40.23704530431298,
   "params": {
-    "stall_torque": 0.31362641631160704,
-    "no_load_speed": 1458.0887191236122,
-    "motor_friction_duty": 0.12575436646389715,
-    "wheel_frictionloss": 0.24017912111636489,
+    "stall_torque": 0.31342308243421063,
+    "no_load_speed": 1289.0307090728766,
+    "wheel_frictionloss": 0.12569731523540711,
     "delay_ctrl_steps": 2,
-    "ground_friction": 0.4,
-    "motor_inertia_mult": 1.415095401924073,
+    "ground_friction": 1.0432233663022896,
+    "motor_inertia_mult": 0.05,
     "motor_backlash_deg": 0.0,
-    "imu_fusion_hz": 0.008193269206895802
+    "imu_fusion_hz": 0.030947865155451768
   },
   "terms": {
-    "topple_lambda": 0.09809445651117545,
-    "topple_roll": 0.0,
+    "topple_lambda": 0.38848220810465994,
+    "topple_roll": 0.004566777566127319,
     "cruise300_fall": 6.0,
-    "cruise300_v": 8.109874377351167,
-    "cruise300_sat": 0.5216049382716053,
-    "cruise300_osc": 3.7377777777777785,
+    "cruise300_v": 3.406134646872578,
+    "cruise300_sat": 0.08834104938271609,
+    "cruise300_osc": 5.921111111111112,
     "cruise750_fall": 6.0,
-    "cruise750_v": 15.322924938179773,
-    "cruise750_sat": 0.5216049382716053,
-    "cruise750_osc": 3.7377777777777785,
+    "cruise750_v": 8.42139083924282,
+    "cruise750_sat": 0.08834104938271609,
+    "cruise750_osc": 5.921111111111112,
     "keep_fall": 0.0,
-    "keep_sigma": 3.4440380818734178,
-    "keep_ring": 3.1802777777777775
+    "keep_sigma": 0.35583040042802694,
+    "keep_ring": 3.641736111111111
   },
-  "elapsed_s": 229
+  "elapsed_s": 213
 }
