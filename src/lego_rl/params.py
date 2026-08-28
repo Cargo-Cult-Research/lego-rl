@@ -301,16 +301,23 @@ class PhysicalParams:
     # how dead the impact is (<1 restores energy = bounce). Defaults are
     # MuJoCo's own; they are FICTION until fit to the run 35 traces
     # (wheels 850->0 in ~90 ms, -300 deg/s whip).
-    contact_timeconst: float = field(default=0.02, metadata=_p(
-        GUESS, "s; fit_contacts.py fits it against run 35"))
-    contact_dampratio: float = field(default=1.0, metadata=_p(
-        GUESS, "1 = dead contact; fit_contacts.py fits it against run 35"))
+    # Values are the 2026-08-27 fit against the run 35 traces
+    # (fit_contacts.py, loss 3.8): wheel-collapse time, whip-per-speed and
+    # excursion all match head-on; the glancing hit's gentleness matches;
+    # the known residual is the 190 ms between wheel impacts on the 45-deg
+    # hit (sim gives ~25 ms -- the normal-impulse yaw snap, not reachable
+    # with these knobs). MuJoCo's default 0.02 s wall took 210 ms to stop
+    # the wheels where the real wall took 90.
+    contact_timeconst: float = field(default=0.0027, metadata=_p(
+        INFERRED, "s; fit vs run 35 head-on collapse (fit_contacts.py)"))
+    contact_dampratio: float = field(default=1.3, metadata=_p(
+        INFERRED, "dead wall, no bounce; fit vs run 35 (fit_contacts.py)"))
     # Tangential friction of the wall FACE -- distinct from ground_friction
     # (rubber on carpet). A grabby wall turns a glancing hit into a yaw
     # whip; the real 45-deg hit slid along the wall (190 ms between wheel
     # impacts, run 35 seg 11), which is what this knob controls.
-    wall_friction: float = field(default=1.0, metadata=_p(
-        GUESS, "fit_contacts.py fits it against the glancing signature"))
+    wall_friction: float = field(default=0.75, metadata=_p(
+        INFERRED, "fit vs run 35 glancing signature (fit_contacts.py)"))
 
     # --- loop / sim ---
     control_hz: float = field(default=200.0, metadata=_p(
@@ -362,9 +369,10 @@ class DomainRandomization:
     # Contact params get randomized around whatever fit_contacts.py lands
     # on -- a collision policy that only survives one wall stiffness has
     # overfit to the solver (same lesson as backlash_solref_s).
-    contact_timeconst: tuple = (0.005, 0.05)
-    contact_dampratio: tuple = (0.5, 1.2)
-    wall_friction: tuple = (0.2, 1.2)
+    # Ranges bracket the fitted values, not the old MuJoCo defaults.
+    contact_timeconst: tuple = (0.0015, 0.01)
+    contact_dampratio: tuple = (0.8, 1.5)
+    wall_friction: tuple = (0.3, 1.1)
     wheel_radius_scale: tuple = (0.97, 1.03)
     stall_torque_scale: tuple = (0.70, 1.10)
     no_load_speed_scale: tuple = (0.90, 1.10)

@@ -90,3 +90,16 @@ number the policy has to beat, at higher commanded speed.
    24 deg excursion.
 3. Then the speed-chaser env: obstacle angle randomization anchored by
    the seg 11 glancing signature.
+
+## Addendum 2026-08-27 (later): the contacts are fit
+
+`scripts/fit_contacts.py` replayed this run's protocol in the 3D model
+(fitted plant, fused pitch) and fit the wall contact to these traces:
+timeconst 2.7 ms (MuJoCo's 20 ms default took 210 ms to stop the wheels
+where the real wall took 90), dampratio 1.3 (dead, no bounce),
+wall_friction 0.75. Head-on collapse time, whip-per-speed, excursion,
+and the glancing hit's gentleness all match; the open residual is the
+190 ms between wheel impacts on the 45-deg hit (sim yaw-snaps in ~25 ms
+-- normal-impulse geometry, not reachable with these knobs). Fitted
+values are now the PhysicalParams defaults, randomized around
+(data/contacts_fit_best.json).

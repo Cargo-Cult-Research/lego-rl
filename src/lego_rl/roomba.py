@@ -63,6 +63,7 @@ class RoombaEnv(gym.Env):
         self._spin_l = self.model.joint("spin_l")
         self._spin_r = self.model.joint("spin_r")
         self._gyro_adr = self.model.sensor("gyro").adr[0]
+        self._accel_adr = self.model.sensor("accel").adr[0]
         self.steps_per_ctrl = max(1, round(1.0 / (p.control_hz * p.physics_dt)))
         self.max_steps = int(self._max_seconds * p.control_hz)
 
@@ -102,6 +103,8 @@ class RoombaEnv(gym.Env):
         mujoco.mj_forward(self.model, self.data)
         self._delay = deque([np.zeros(2)] * p.delay_ctrl_steps)
         self._t = 0
+        self._rate_filt = 0.0
+        self._pitch_fused = 0.0
         self._visited = set()
         self._mark_cell()
         return self._obs(), {}
@@ -161,6 +164,22 @@ class RoombaEnv(gym.Env):
             0.0,
             0.0,
         ])
+        # Fitted signal path, same as the balancer env (a policy trained on
+        # raw signals meets an unmodeled filter at deployment -- run 16).
+        dt = 1.0 / p.control_hz
+        if p.imu_fusion_hz > 0:
+            fx = float(self.data.sensordata[self._accel_adr + 0])
+            fz = float(self.data.sensordata[self._accel_adr + 2])
+            pitch_acc = (-math.atan2(fx, max(abs(fz), 1e-6))
+                         + self.np_random.normal(
+                             0.0, math.radians(p.imu_angle_noise)))
+            k = dt / (1.0 / (2 * math.pi * p.imu_fusion_hz) + dt)
+            self._pitch_fused += s[1] * dt + k * (pitch_acc - self._pitch_fused)
+            s[0] = self._pitch_fused
+        if p.rate_filter_tau_ms > 0:
+            alpha = (dt * 1000.0) / (p.rate_filter_tau_ms + dt * 1000.0)
+            self._rate_filt += alpha * (s[1] - self._rate_filt)
+            s[1] = self._rate_filt
         qv = math.radians(p.encoder_speed_quantum_dps)
         if qv > 0:
             s[3] = round(s[3] / qv) * qv
