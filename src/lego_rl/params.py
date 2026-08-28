@@ -200,6 +200,25 @@ class PhysicalParams:
     motor_inertia_mult: float = field(default=0.3, metadata=_p(
         INFERRED, "x robot inertia reflected at the wheel; from the measured "
                   "mode, not weighed"))
+    # Static + coulomb friction on the WHEEL joint itself (gearbox drag,
+    # motor-to-chassis). Run 17 measured a ~22% duty breakaway and run 36
+    # showed the drivetrain stays locked through a whole topple, so the
+    # mechanism is real; its joint-level torque is a FIT quantity. Default
+    # off until the sysid fit lands -- one single-knob sweep already showed
+    # it does not, alone, explain the lag-fragility.
+    wheel_frictionloss: float = field(default=0.0, metadata=_p(
+        INFERRED, "N*m; sysid_fit.py fits it against runs 35/36"))
+
+    # The hub's imu.rotation() is accel-fused, not a pure gyro integral --
+    # the sim has always fed back the pure integral. A complementary filter
+    # at this crossover frequency models the fusion (0 = off). Suspect in
+    # the lag-fragility hunt: accel fusion changes the pitch signal's phase
+    # exactly where the 30 ms rate filter hurts. Constrained from above by
+    # runs 20/26: the reference measurably WALKS ~0.2 deg/s in closed loop,
+    # so the real fusion is weak or gated -- a fit that wants it strong is
+    # contradicting that measurement.
+    imu_fusion_hz: float = field(default=0.0, metadata=_p(
+        INFERRED, "sysid_fit.py fits it; Pybricks does not document it"))
 
     # --- sensing / timing ---
     # Pybricks reports motor.angle() and motor.speed() as INTEGER degrees, and

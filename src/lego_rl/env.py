@@ -141,6 +141,7 @@ class BalancerEnv(gym.Env):
                 mujoco.mj_step(self.model, self.data)
         self._delay = deque([0.0] * p.delay_ctrl_steps)
         self._rate_filt = 0.0
+        self._pitch_fused = 0.0   # re-zeroed at arm time, like the hub
         self._t = 0
         return self._obs(), {}
 
@@ -221,6 +222,27 @@ class BalancerEnv(gym.Env):
             0.0,
             0.0,
         ])
+        # ACCEL FUSION (imu_fusion_hz > 0; default off, being fit by
+        # sysid_fit.py). The hub's imu.rotation() is not a pure gyro
+        # integral: it leans on the accelerometer's tilt estimate at some
+        # undocumented crossover. Modeled as a complementary filter fed the
+        # biased gyro and an accel tilt CONTAMINATED by the robot's own
+        # acceleration (a_x at the hub = chassis accel + hub_height * pitch
+        # accel; small angle), because that contamination is the whole
+        # sim2real question -- a fused pitch is quieter standing still and
+        # lies during hard maneuvers. Replaces the open-integral drift
+        # model: with fusion on, reference walk EMERGES from bias vs
+        # crossover instead of being painted on.
+        if p.imu_fusion_hz > 0:
+            dt = 1.0 / p.control_hz
+            xdd = float(self.data.qacc[self._adr["slide_x"][1]])
+            thdd = float(self.data.qacc[self._adr["pitch"][1]])
+            pitch_acc = (s[0] - (xdd + p.hub_center_z * thdd) / 9.81
+                         + self.np_random.normal(
+                             0.0, math.radians(p.imu_angle_noise)))
+            k = dt / (1.0 / (2 * math.pi * p.imu_fusion_hz) + dt)
+            self._pitch_fused += meas[1] * dt + k * (pitch_acc - self._pitch_fused)
+            meas[0] = self._pitch_fused
         # The hub low-passes the (noisy, biased) gyro before any controller
         # sees it — hubconfig RATE_TAU_MS, load-bearing since run 3. The sim
         # used to hand back the raw rate, i.e. every policy trained here met

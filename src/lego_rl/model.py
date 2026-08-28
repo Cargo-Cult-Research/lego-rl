@@ -271,7 +271,8 @@ def build_mjcf(p: PhysicalParams) -> str:
       <joint name="slide_z" type="slide" axis="0 0 1"/>
       <joint name="pitch" type="hinge" axis="0 1 0"/>{body_geoms}
       <body name="wheels" pos="0 0 0">
-        <joint name="wheel" type="hinge" axis="0 1 0" armature="{armature:.6g}"/>
+        <joint name="wheel" type="hinge" axis="0 1 0" armature="{armature:.6g}"
+               frictionloss="{p.wheel_frictionloss:.6g}"/>
 {rotor_inertial}{lash_open}
         <geom name="wheel_geom" type="cylinder"
               size="{p.wheel_radius} {p.axle_half_width}" euler="90 0 0"
