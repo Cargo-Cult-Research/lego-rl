@@ -38,3 +38,17 @@ duty -- half its commands live inside the dead zone. Scaling stall to
 honest model is the dead zone itself, which this run measured. It goes
 into the motor model as static friction applied at stall, and the refit
 runs with stall pinned here and fusion capped at run 37's 0.05 Hz.
+
+## Amendment (same evening): the 15-25% plateau voids those points
+
+Urs spotted what the line fit glossed over: 15/20/25% all read ~50 g,
+which the linear model does not explain. The explanation is run 17's
+own measurement: below the ~22% breakaway the rotor does not move, and
+the scale cannot change without the motor winding the train -- so those
+three readings are FROZEN wind-up from setup/previous steps, not
+torque. They are void. Refit on the four clean points (30-60%):
+stall ~0.385 N*m, dead zone ~18% -- but four kitchen-scale points carry
+real uncertainty (+-0.06), so the committed 0.316 stands as PROVISIONAL
+until the revised probe reruns. The probe now unwinds the train with a
+reverse blip before every step and samples the low end densely
+(12-30%), two passes.
