@@ -27,7 +27,8 @@ def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
     # contact pair against the default-solref robot geoms.
     wall_h, wall_t = 0.35, 0.02
     wall_contact = (f'solref="{p.contact_timeconst:.6g} '
-                    f'{p.contact_dampratio:.6g}" priority="1"')
+                    f'{p.contact_dampratio:.6g}" priority="1" '
+                    f'friction="{p.wall_friction:.6g} 0.005 0.0001"')
     # Reflected rotor inertia per wheel: same reasoning as the 2D model,
     # half the robot's inertia reflected at each of two wheels.
     i_load_half = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 / 2

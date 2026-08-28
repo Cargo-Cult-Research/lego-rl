@@ -133,7 +133,7 @@ def sim_impact(p, approach_deg=0.0, seconds=9.0):
             mujoco.mj_step(model, data)
         yaw_rate = math.degrees(float(data.sensordata[gyro + 2]))
         rows.append((t, pitch, rate_raw, yaw_rate, wl, wr,
-                     float(data.qpos[0])))
+                     float(data.qpos[0]), float(data.qpos[1])))
         if abs(pitch) > 70:
             break
     return rows
@@ -141,12 +141,15 @@ def sim_impact(p, approach_deg=0.0, seconds=9.0):
 
 def features(rows):
     """Same measurements the run-35 analysis made on the real traces."""
-    x = np.array([r[6] for r in rows])
+    # distance to the NEAREST wall -- a 45 deg heading meets the north
+    # wall, not the east one (the first version only gated on x and
+    # declared every glancing run impact-free)
+    near = np.array([max(abs(r[6]), abs(r[7])) for r in rows])
     speeds = np.array([(r[4] + r[5]) / 2 for r in rows])
-    # impact = first big single-tick wheel deceleration near the wall
+    # impact = first big single-tick wheel deceleration near a wall
     contact = None
     for i in range(220, len(rows) - 2):
-        if x[i] > ARENA - 0.25 and speeds[i] - speeds[i + 2] > 150:
+        if near[i] > ARENA - 0.25 and speeds[i] - speeds[i + 2] > 150:
             contact = i
             break
     if contact is None:
@@ -173,7 +176,8 @@ def features(rows):
 
 def evaluate(cd):
     p = fitted_params({"contact_timeconst": cd["timeconst"],
-                       "contact_dampratio": cd["dampratio"]})
+                       "contact_dampratio": cd["dampratio"],
+                       "wall_friction": cd.get("wall_friction", 1.0)})
     head = features(sim_impact(p, 0.0))
     if head is None or head["v_imp"] < 150:
         return 100.0, {"no_impact": 100.0}
@@ -211,15 +215,16 @@ def main():
         return
 
     rng = np.random.default_rng(0)
-    lo = np.array([0.002, 0.3])
-    hi = np.array([0.06, 1.3])
+    lo = np.array([0.002, 0.3, 0.15])
+    hi = np.array([0.06, 1.3, 1.2])
     mean, sigma = (lo + hi) / 2, (hi - lo) / 3
     best, best_d, best_terms = float("inf"), None, None
     for g in range(args.gens):
-        xs = np.clip(rng.normal(mean, sigma, size=(12, 2)), lo, hi)
+        xs = np.clip(rng.normal(mean, sigma, size=(12, 3)), lo, hi)
         scored = []
         for x in xs:
-            d = {"timeconst": float(x[0]), "dampratio": float(x[1])}
+            d = {"timeconst": float(x[0]), "dampratio": float(x[1]),
+                 "wall_friction": float(x[2])}
             loss, terms = evaluate(d)
             scored.append((loss, x, d, terms))
         scored.sort(key=lambda s: s[0])

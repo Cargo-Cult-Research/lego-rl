@@ -305,6 +305,12 @@ class PhysicalParams:
         GUESS, "s; fit_contacts.py fits it against run 35"))
     contact_dampratio: float = field(default=1.0, metadata=_p(
         GUESS, "1 = dead contact; fit_contacts.py fits it against run 35"))
+    # Tangential friction of the wall FACE -- distinct from ground_friction
+    # (rubber on carpet). A grabby wall turns a glancing hit into a yaw
+    # whip; the real 45-deg hit slid along the wall (190 ms between wheel
+    # impacts, run 35 seg 11), which is what this knob controls.
+    wall_friction: float = field(default=1.0, metadata=_p(
+        GUESS, "fit_contacts.py fits it against the glancing signature"))
 
     # --- loop / sim ---
     control_hz: float = field(default=200.0, metadata=_p(
@@ -358,6 +364,7 @@ class DomainRandomization:
     # overfit to the solver (same lesson as backlash_solref_s).
     contact_timeconst: tuple = (0.005, 0.05)
     contact_dampratio: tuple = (0.5, 1.2)
+    wall_friction: tuple = (0.2, 1.2)
     wheel_radius_scale: tuple = (0.97, 1.03)
     stall_torque_scale: tuple = (0.70, 1.10)
     no_load_speed_scale: tuple = (0.90, 1.10)
@@ -420,6 +427,7 @@ class DomainRandomization:
             head_mass=u(self.head_mass),
             contact_timeconst=u(self.contact_timeconst),
             contact_dampratio=u(self.contact_dampratio),
+            wall_friction=u(self.wall_friction),
             wheel_radius=p.wheel_radius * u(self.wheel_radius_scale),
             stall_torque=p.stall_torque * u(self.stall_torque_scale),
             no_load_speed=p.no_load_speed * u(self.no_load_speed_scale),
