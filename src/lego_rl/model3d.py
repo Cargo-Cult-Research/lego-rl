@@ -13,6 +13,7 @@ Noted here so nobody mistakes absence for a claim.
 Same provenance'd parameters as the 2D model (params.py); `arena` is the
 half-width of the square arena in metres.
 """
+from .model import _lump_geoms
 from .params import PhysicalParams
 
 
@@ -30,6 +31,15 @@ def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
         return (f'<geom name="{name}" type="box" pos="{x} {y} {wall_h / 2}" '
                 f'size="{sx} {sy} {wall_h / 2}" rgba="0.6 0.6 0.65 1"/>')
 
+    # Same five lumps as the planar model -- identical mass distribution AND
+    # contact silhouette (a wall hit lands on the frame/head at real height).
+    if p.lumped_body:
+        body_geoms = _lump_geoms(p, fr)
+    else:
+        body_geoms = f"""
+      <geom name="body" type="box" size="0.03 0.045 {body_half}"
+            pos="0 0 {p.com_height}" mass="{p.body_mass}" friction="{fr}"/>"""
+
     return f"""
 <mujoco model="lego_roomba">
   <option timestep="{p.physics_dt}" integrator="implicitfast"/>
@@ -41,9 +51,7 @@ def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
     {wall("wall_w", -arena, 0, wall_t, arena + wall_t)}
     <body name="chassis" pos="0 0 {p.wheel_radius}">
       <freejoint name="root"/>
-      <site name="imu" pos="0 0 {p.com_height}"/>
-      <geom name="body" type="box" size="0.03 0.045 {body_half}"
-            pos="0 0 {p.com_height}" mass="{p.body_mass}" friction="{fr}"/>
+      <site name="imu" pos="0 0 {p.hub_center_z if p.lumped_body else p.com_height}"/>{body_geoms}
       <body name="wheel_l" pos="0 {half_track} 0">
         <joint name="spin_l" type="hinge" axis="0 1 0" armature="{armature:.6g}"/>
         <geom name="tyre_l" type="cylinder" size="{p.wheel_radius} 0.008"

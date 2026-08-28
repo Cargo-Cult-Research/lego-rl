@@ -85,6 +85,39 @@ import math
 from .params import PhysicalParams
 
 
+def body_lumps(p: PhysicalParams):
+    """The body as five rigid lumps, from the 2026-08-27 part weighing and
+    layout photo: two L motors at the axle, the hub riding high, the beam
+    frame, a small head on top. Shared by the planar model (here) and the
+    3D roomba model, so both plants carry the same mass distribution AND
+    the same contact silhouette -- the head's height decides where a wall
+    hit lands, which is load-bearing for the collision work.
+
+    Returns (name, mass, (x, y, z), (hx, hy, hz)) per lump. Masses are the
+    weighed parts normalized to body_mass (the whole-robot weighing wins
+    over the part tally; kitchen scale disagrees with itself by ~3%).
+    """
+    y_m = max(0.0, p.axle_half_width - 0.03)   # motors just inside the wheels
+    parts = [
+        ("motor_l", p.motor_mass, (0, -y_m, p.motor_com_z), (0.015, 0.028, 0.015)),
+        ("motor_r", p.motor_mass, (0, y_m, p.motor_com_z), (0.015, 0.028, 0.015)),
+        # Technic Hub is 88 x 44 x 26 mm, long axis vertical when standing
+        ("hub", p.hub_mass, (0, 0, p.hub_center_z), (0.013, 0.022, 0.044)),
+        ("frame", p.frame_mass, (0, 0, p.frame_com_z), (0.004, 0.045, 0.060)),
+        ("head", p.head_mass, (0, 0, p.head_com_z), (0.015, 0.025, 0.015)),
+    ]
+    s = p.body_mass / sum(m for _, m, _, _ in parts)
+    return [(n, m * s, pos, size) for n, m, pos, size in parts]
+
+
+def _lump_geoms(p: PhysicalParams, fr: str) -> str:
+    return "".join(
+        f"""
+      <geom name="{n}" type="box" size="{sx} {sy} {sz}"
+            pos="{x} {y} {z}" mass="{m:.12g}" friction="{fr}"/>"""
+        for n, m, (x, y, z), (sx, sy, sz) in body_lumps(p))
+
+
 def build_mjcf(p: PhysicalParams) -> str:
     body_half = 0.9 * p.com_height  # box spans ~0.1*com to ~1.9*com above the axle
     fr = f"{p.ground_friction} 0.005 0.0001"
@@ -218,6 +251,16 @@ def build_mjcf(p: PhysicalParams) -> str:
         rotor_inertial = ""
         lash_open = lash_close = ""
 
+    # The lumped body replaces the uniform box (2026-08-27); the box remains
+    # reachable for comparison and still carries the hub-flex machinery,
+    # which predates the lumps and splits the box mass by hub_mass_frac.
+    if p.lumped_body and not (p.hub_resonance_hz and p.hub_resonance_hz > 0):
+        body_geoms = _lump_geoms(p, fr)
+    else:
+        body_geoms = f"""
+      <geom name="body" type="box" size="0.03 0.045 {body_half}"
+            pos="0 0 {p.com_height}" mass="{chassis_mass}" friction="{fr}"/>{hub_xml}"""
+
     return f"""
 <mujoco model="lego_balancer">
   <option timestep="{p.physics_dt}" integrator="implicitfast"/>
@@ -226,9 +269,7 @@ def build_mjcf(p: PhysicalParams) -> str:
     <body name="chassis" pos="0 0 {p.wheel_radius}">
       <joint name="slide_x" type="slide" axis="1 0 0"/>
       <joint name="slide_z" type="slide" axis="0 0 1"/>
-      <joint name="pitch" type="hinge" axis="0 1 0"/>
-      <geom name="body" type="box" size="0.03 0.045 {body_half}"
-            pos="0 0 {p.com_height}" mass="{chassis_mass}" friction="{fr}"/>{hub_xml}
+      <joint name="pitch" type="hinge" axis="0 1 0"/>{body_geoms}
       <body name="wheels" pos="0 0 0">
         <joint name="wheel" type="hinge" axis="0 1 0" armature="{armature:.6g}"/>
 {rotor_inertial}{lash_open}

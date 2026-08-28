@@ -105,6 +105,29 @@ def test_hub_compliance_matches_requested_mode():
                         p.body_mass + p.wheel_mass, abs_tol=2e-3)
 
 
+def test_lumped_body_closes_the_measured_com():
+    """The lump positions are INFERRED from a photo; the one independent
+    anchor is the measured 5 cm balance point of the body WITHOUT wheels,
+    taken before the head existed. The head-free lump com must land on it.
+    Also: lumps must sum exactly to body_mass (the whole-robot weighing
+    wins over the part tally), in both the planar and 3D models."""
+    import mujoco
+    from lego_rl.model import body_lumps, build_mjcf
+    from lego_rl.model3d import build_mjcf_3d
+    from lego_rl.params import nominal_params
+
+    p = nominal_params()
+    lumps = body_lumps(p)
+    assert abs(sum(m for _, m, _, _ in lumps) - p.body_mass) < 1e-9
+    no_head = [(m, pos[2]) for n, m, pos, _ in lumps if n != "head"]
+    com = sum(m * z for m, z in no_head) / sum(m for m, z in no_head)
+    assert abs(com - p.com_height) < 0.005, f"lump com {com:.4f} vs measured"
+    for xml in (build_mjcf(p), build_mjcf_3d(p)):
+        m = mujoco.MjModel.from_xml_string(xml)
+        total = float(m.body("chassis").subtreemass[0])
+        assert abs(total - (p.body_mass + p.wheel_mass)) < 2e-3
+
+
 def test_rigid_model_when_compliance_disabled():
     import mujoco
     from lego_rl.model import build_mjcf

@@ -32,15 +32,49 @@ class PhysicalParams:
         MEASURED, "calipers on the actual 42124 tire: 75 mm dia, 2026-08-22"))
     axle_half_width: float = field(default=0.06, metadata=_p(
         GUESS, "half-span of the lumped wheel cylinder"))
-    wheel_mass: float = field(default=0.058, metadata=_p(
-        MEASURED, "kitchen scale, 29 g each"))
-    body_mass: float = field(default=0.371, metadata=_p(
-        MEASURED, "kitchen scale, batteries in: 429 g total - 58 g wheels "
-                  "(bracing added 2026-08-22: 410 -> 429 g)"))
+    wheel_mass: float = field(default=0.056, metadata=_p(
+        MEASURED, "kitchen scale, 28 g each (re-weighed 2026-08-27)"))
+    body_mass: float = field(default=0.388, metadata=_p(
+        MEASURED, "kitchen scale 2026-08-27: 444 g whole robot with head "
+                  "- 56 g wheels. (History: 429 g braced no-head 2026-08-22.)"))
     com_height: float = field(default=0.05, metadata=_p(
-        MEASURED, "balance the body (no wheels) on a straightedge"))
+        MEASURED, "balance the body (no wheels) on a straightedge; "
+                  "pre-head. The lumped body must land near this -- "
+                  "tests/test_env.py checks it"))
     # LOW com -> fast pendulum (~14 rad/s); raising the hub would make
     # everything easier.
+
+    # --- body composition (5 lumps + head; part weighing + photo 2026-08-27)
+    # The real body is 2 motors at the axle, the hub riding high, the beam
+    # frame, and a small head on top -- not a uniform box. The box model got
+    # the LOCKED topple inertia right by luck (run 36: lambda 7.74 vs 7.46
+    # real) but its free-axle inertia and its contact silhouette (where the
+    # head hits a wall, and how high) were never anchored to anything.
+    # Lump masses are RATIOS: the model normalizes them to body_mass, because
+    # the part weighings (459 g + head) and the whole-robot weighing (444 g)
+    # disagree by ~3% on a kitchen scale, and the whole-robot number wins.
+    # Positions are photo-derived (LEGO hole pitch 8 mm for scale) and closed
+    # against the measured 5 cm body com -> INFERRED, randomize accordingly.
+    hub_mass: float = field(default=0.250, metadata=_p(
+        MEASURED, "kitchen scale 2026-08-27, batteries in"))
+    motor_mass: float = field(default=0.054, metadata=_p(
+        MEASURED, "kitchen scale 2026-08-27, per motor"))
+    frame_mass: float = field(default=0.045, metadata=_p(
+        MEASURED, "kitchen scale 2026-08-27: beams + pins + cables"))
+    head_mass: float = field(default=0.015, metadata=_p(
+        INFERRED, "total went 429 -> 444 g when the head was added"))
+    hub_center_z: float = field(default=0.060, metadata=_p(
+        INFERRED, "photo 2026-08-27 + closing the measured 5 cm body com"))
+    motor_com_z: float = field(default=0.022, metadata=_p(
+        INFERRED, "L-motor body extends inward/up from the axle"))
+    frame_com_z: float = field(default=0.060, metadata=_p(
+        INFERRED, "beams span axle to hub top"))
+    head_com_z: float = field(default=0.145, metadata=_p(
+        INFERRED, "photo; also sets where a head-on wall hit lands"))
+    lumped_body: bool = field(default=True, metadata=_p(
+        MEASURED, "use the 5-lump body; False restores the uniform box "
+                  "(pre-2026-08-27 plant). Auto-falls-back to the box when "
+                  "hub_resonance_hz > 0 (the flex model predates the lumps)"))
 
     # --- motors (2x Technic L motor, device id 46, one per wheel, direct
     #     drive, electrically synced; values below are PER MOTOR) ---
@@ -281,6 +315,14 @@ class DomainRandomization:
     Pybricks reference hand-compensates exactly those two domain gaps."""
     mass_scale: tuple = (0.85, 1.15)
     com_height_scale: tuple = (0.90, 1.10)
+    # Lump positions are INFERRED from a photo (hole-pitch scale) and the
+    # com closure -- randomize over the honest uncertainty, ~+-1 cm, and
+    # the head over more (its mass is a difference of two weighings).
+    hub_center_z: tuple = (0.050, 0.072)
+    motor_com_z: tuple = (0.015, 0.030)
+    frame_com_z: tuple = (0.045, 0.075)
+    head_com_z: tuple = (0.125, 0.165)
+    head_mass: tuple = (0.008, 0.025)
     wheel_radius_scale: tuple = (0.97, 1.03)
     stall_torque_scale: tuple = (0.70, 1.10)
     no_load_speed_scale: tuple = (0.90, 1.10)
@@ -336,6 +378,11 @@ class DomainRandomization:
             body_mass=p.body_mass * u(self.mass_scale),
             wheel_mass=p.wheel_mass * u(self.mass_scale),
             com_height=p.com_height * u(self.com_height_scale),
+            hub_center_z=u(self.hub_center_z),
+            motor_com_z=u(self.motor_com_z),
+            frame_com_z=u(self.frame_com_z),
+            head_com_z=u(self.head_com_z),
+            head_mass=u(self.head_mass),
             wheel_radius=p.wheel_radius * u(self.wheel_radius_scale),
             stall_torque=p.stall_torque * u(self.stall_torque_scale),
             no_load_speed=p.no_load_speed * u(self.no_load_speed_scale),
