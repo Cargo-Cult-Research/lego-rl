@@ -295,6 +295,17 @@ class PhysicalParams:
                "is purely in the pitch plane and the IMU is rigid to the "
                "flexing element -- both unlikely. See model.py"))
 
+    # --- collision contacts (fit_contacts.py fits these to run 35) ---
+    # Wall-impact contact behavior: MuJoCo solref (timeconst, dampratio) on
+    # the arena walls. timeconst sets how stiff the wall feels, dampratio
+    # how dead the impact is (<1 restores energy = bounce). Defaults are
+    # MuJoCo's own; they are FICTION until fit to the run 35 traces
+    # (wheels 850->0 in ~90 ms, -300 deg/s whip).
+    contact_timeconst: float = field(default=0.02, metadata=_p(
+        GUESS, "s; fit_contacts.py fits it against run 35"))
+    contact_dampratio: float = field(default=1.0, metadata=_p(
+        GUESS, "1 = dead contact; fit_contacts.py fits it against run 35"))
+
     # --- loop / sim ---
     control_hz: float = field(default=200.0, metadata=_p(
         MEASURED, "we set it: DT=5 ms in the Pybricks loop"))
@@ -342,6 +353,11 @@ class DomainRandomization:
     frame_com_z: tuple = (0.045, 0.075)
     head_com_z: tuple = (0.125, 0.165)
     head_mass: tuple = (0.008, 0.025)
+    # Contact params get randomized around whatever fit_contacts.py lands
+    # on -- a collision policy that only survives one wall stiffness has
+    # overfit to the solver (same lesson as backlash_solref_s).
+    contact_timeconst: tuple = (0.005, 0.05)
+    contact_dampratio: tuple = (0.5, 1.2)
     wheel_radius_scale: tuple = (0.97, 1.03)
     stall_torque_scale: tuple = (0.70, 1.10)
     no_load_speed_scale: tuple = (0.90, 1.10)
@@ -402,6 +418,8 @@ class DomainRandomization:
             frame_com_z=u(self.frame_com_z),
             head_com_z=u(self.head_com_z),
             head_mass=u(self.head_mass),
+            contact_timeconst=u(self.contact_timeconst),
+            contact_dampratio=u(self.contact_dampratio),
             wheel_radius=p.wheel_radius * u(self.wheel_radius_scale),
             stall_torque=p.stall_torque * u(self.stall_torque_scale),
             no_load_speed=p.no_load_speed * u(self.no_load_speed_scale),

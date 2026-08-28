@@ -20,7 +20,14 @@ from .params import PhysicalParams
 def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
     body_half = 0.9 * p.com_height
     fr = f"{p.ground_friction} 0.005 0.0001"
-    wall_h, wall_t = 0.08, 0.02
+    # Walls must be TALLER than the head (0.35 vs head top ~0.16): run 35's
+    # real wall stopped the whole silhouette. The first version's 0.08
+    # walls would let the sim robot high-side over a wall its real twin
+    # bounces off. priority=1 makes the wall's fitted solref win the
+    # contact pair against the default-solref robot geoms.
+    wall_h, wall_t = 0.35, 0.02
+    wall_contact = (f'solref="{p.contact_timeconst:.6g} '
+                    f'{p.contact_dampratio:.6g}" priority="1"')
     # Reflected rotor inertia per wheel: same reasoning as the 2D model,
     # half the robot's inertia reflected at each of two wheels.
     i_load_half = (p.body_mass + p.wheel_mass) * p.wheel_radius ** 2 / 2
@@ -29,7 +36,8 @@ def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
 
     def wall(name, x, y, sx, sy):
         return (f'<geom name="{name}" type="box" pos="{x} {y} {wall_h / 2}" '
-                f'size="{sx} {sy} {wall_h / 2}" rgba="0.6 0.6 0.65 1"/>')
+                f'size="{sx} {sy} {wall_h / 2}" {wall_contact} '
+                f'rgba="0.6 0.6 0.65 1"/>')
 
     # Same five lumps as the planar model -- identical mass distribution AND
     # contact silhouette (a wall hit lands on the frame/head at real height).
@@ -53,12 +61,14 @@ def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
       <freejoint name="root"/>
       <site name="imu" pos="0 0 {p.hub_center_z if p.lumped_body else p.com_height}"/>{body_geoms}
       <body name="wheel_l" pos="0 {half_track} 0">
-        <joint name="spin_l" type="hinge" axis="0 1 0" armature="{armature:.6g}"/>
+        <joint name="spin_l" type="hinge" axis="0 1 0" armature="{armature:.6g}"
+               frictionloss="{p.wheel_frictionloss / 2:.6g}"/>
         <geom name="tyre_l" type="cylinder" size="{p.wheel_radius} 0.008"
               euler="90 0 0" mass="{p.wheel_mass / 2}" friction="{fr}"/>
       </body>
       <body name="wheel_r" pos="0 {-half_track} 0">
-        <joint name="spin_r" type="hinge" axis="0 1 0" armature="{armature:.6g}"/>
+        <joint name="spin_r" type="hinge" axis="0 1 0" armature="{armature:.6g}"
+               frictionloss="{p.wheel_frictionloss / 2:.6g}"/>
         <geom name="tyre_r" type="cylinder" size="{p.wheel_radius} 0.008"
               euler="90 0 0" mass="{p.wheel_mass / 2}" friction="{fr}"/>
       </body>
@@ -70,6 +80,7 @@ def build_mjcf_3d(p: PhysicalParams, arena: float = 0.75) -> str:
   </contact>
   <sensor>
     <gyro name="gyro" site="imu"/>
+    <accelerometer name="accel" site="imu"/>
   </sensor>
   <actuator>
     <motor name="drive_l" joint="spin_l" gear="1" ctrlrange="-5 5"/>
