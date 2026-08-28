@@ -50,7 +50,12 @@ SPACE = [
     ("no_load_speed",      1200, 1700, False),
     ("motor_friction_duty", 0.0, 0.25, False),
     ("wheel_frictionloss",  0.0, 0.30, False),
-    ("delay_ctrl_steps",      0,    6, True),
+    # Lower bound 2, not 0: the measured 15-19 ms cmd->motion includes
+    # stiction breakaway (now modeled separately), so some latency is
+    # honestly attributable elsewhere -- but a fit at delay 0 would just be
+    # deleting the measurement. The first unconstrained run did exactly
+    # that; delay=2 still stood in ablation.
+    ("delay_ctrl_steps",      2,    6, True),
     ("ground_friction",     0.4,  1.5, False),
     ("motor_inertia_mult", 0.05,  1.5, False),
     ("motor_backlash_deg",  0.0,  2.5, False),
@@ -214,12 +219,21 @@ def evaluate(d, seeds=(0, 1)):
 
 # --- CEM --------------------------------------------------------------------
 
-def fit(generations=30, pop=24, elite=6, seed=0):
+def fit(generations=30, pop=24, elite=6, seed=0, init=None):
+    """init: optional params dict to warm-start from (narrow basins -- the
+    standing configuration -- are easy to prove by ablation and hard for a
+    cold CEM to find; run 2 got stuck at ~101 from a cold start while a
+    standing vector at 60 was already known)."""
     os.makedirs(OUT_DIR, exist_ok=True)
     rng = np.random.default_rng(seed)
     lo = np.array([s[1] for s in SPACE], dtype=float)
     hi = np.array([s[2] for s in SPACE], dtype=float)
-    mean, sigma = (lo + hi) / 2, (hi - lo) / 3
+    if init is not None:
+        mean = np.array([np.clip(init[name], l, h)
+                         for (name, l, h, _) in SPACE], dtype=float)
+        sigma = (hi - lo) / 8
+    else:
+        mean, sigma = (lo + hi) / 2, (hi - lo) / 3
     best, best_d, best_terms = float("inf"), None, None
     t0 = time.time()
     for g in range(generations):
@@ -247,6 +261,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--gens", type=int, default=30)
+    ap.add_argument("--init", type=str, default=None,
+                    help="warm-start from the params in this best.json")
     args = ap.parse_args()
     if args.smoke:
         d = {name: getattr(nominal_params(), name) for name, *_ in SPACE}
@@ -255,7 +271,11 @@ def main():
         for k, v in sorted(terms.items(), key=lambda kv: -kv[1]):
             print(f"  {k:>16} {v:8.3f}")
         return
-    best, d, terms = fit(generations=args.gens)
+    init = None
+    if args.init:
+        with open(args.init) as f:
+            init = json.load(f)["params"]
+    best, d, terms = fit(generations=args.gens, init=init)
     print(f"\nbest loss {best:.3f}")
     for k, v in d.items():
         print(f"  {k:>18} = {v}")
