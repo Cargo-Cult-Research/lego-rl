@@ -209,16 +209,16 @@ class PhysicalParams:
     wheel_frictionloss: float = field(default=0.0, metadata=_p(
         INFERRED, "N*m; sysid_fit.py fits it against runs 35/36"))
 
-    # The hub's imu.rotation() is accel-fused, not a pure gyro integral --
-    # the sim has always fed back the pure integral. A complementary filter
-    # at this crossover frequency models the fusion (0 = off). Suspect in
-    # the lag-fragility hunt: accel fusion changes the pitch signal's phase
-    # exactly where the 30 ms rate filter hurts. Constrained from above by
-    # runs 20/26: the reference measurably WALKS ~0.2 deg/s in closed loop,
-    # so the real fusion is weak or gated -- a fit that wants it strong is
-    # contradicting that measurement.
+    # The hub's imu.rotation() accel fusion, as a complementary-filter
+    # crossover (0 = pure gyro integral). MEASURED by run 37's slide
+    # probe: ~0.03 Hz -- a ~30 s time constant, invisible at control
+    # timescales, matching the slow reference walk (runs 20/26/34). The
+    # first joint fit wanted 4.6 Hz here and only stood with it; that
+    # value is REFUTED as physics (it was proxying missing dynamics), and
+    # the fit's search bound is now capped at 0.05.
     imu_fusion_hz: float = field(default=0.0, metadata=_p(
-        INFERRED, "sysid_fit.py fits it; Pybricks does not document it"))
+        MEASURED, "run 37 slide probe: crossover ~0.03 Hz; 0 is an "
+                  "honest control-timescale model"))
 
     # --- sensing / timing ---
     # Pybricks reports motor.angle() and motor.speed() as INTEGER degrees, and

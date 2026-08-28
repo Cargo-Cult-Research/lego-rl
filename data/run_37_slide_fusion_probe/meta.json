@@ -1,0 +1,17 @@
+{
+  "n": 37,
+  "title": "Slide probe: rotation() is a pure gyro integral on control timescales -- the fitted 4.6 Hz fusion is refuted",
+  "date": "2026-08-27",
+  "script": "robot/sysid_slide.py",
+  "question": "Does the hub's imu.rotation() lean on the accelerometer fast enough to matter for control (the joint fit wanted 4.6 Hz and only stands with it), or is it the pure gyro integral the reference-walk measurements imply?",
+  "verdict": "ruled-out",
+  "headline": "One rep (operator note: backdriving the sticky planetary gearbox to roll the wheels needed a two-handed press -- consistent with the measured 22% stiction). Sliding at +-2 m/s^2: the pitch reading tracked the pure gyro integral to within 0.01 deg peak-to-peak over the whole window (4.59 vs 4.58 deg -- the body genuinely rocked +-2.3 deg in the operator's hands, which is what the accel-pitch correlation is; mechanical, not sensor). Direct regression of the fusion correction gives a crossover of ~0.03 Hz -- a ~30 s time constant, matching the slow reference walk of runs 20/26/34. The fitted imu_fusion_hz=4.6 is NOT a real IMU property; it was a proxy for missing physics, and the standing-plant recipe loses one of its two legs. Refit pends the stall-torque measurement (the other leg).",
+  "series": [],
+  "media": {"full_trace": "hub_output.log"},
+  "hub_output": [
+    "battery mV: 7592",
+    "slide probe: 2s still / 8s slide / 2s still per rep, 2 reps (1 captured)",
+    "rep 0: slide acc pp 4.2 m/s^2, pitch reading pp 4.59 deg, gyro-int pp 4.58 deg",
+    "rep 0: fusion crossover estimate 0.03 Hz; still-window resid drift -2.4 / +1.2 mdeg/s"
+  ]
+}

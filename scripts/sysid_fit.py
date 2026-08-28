@@ -59,7 +59,11 @@ SPACE = [
     ("ground_friction",     0.4,  1.5, False),
     ("motor_inertia_mult", 0.05,  1.5, False),
     ("motor_backlash_deg",  0.0,  2.5, False),
-    ("imu_fusion_hz",       0.0,  5.0, False),
+    # Run 37 MEASURED the real fusion crossover at ~0.03 Hz (slide probe):
+    # the hub's rotation() is a pure gyro integral on control timescales.
+    # Capped so the optimizer can never again buy stability with
+    # unphysical fusion, as the first fit did at 4.6 Hz.
+    ("imu_fusion_hz",       0.0, 0.05, False),
 ]
 
 # Real anchors (see data/run_35_wall_impact_capture and run_36_free_topple)
