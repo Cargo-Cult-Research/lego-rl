@@ -214,6 +214,11 @@ class PhysicalParams:
     # landed at ~55% duty against the real ~22% (audit 2026-08-28, flagged
     # by Urs after the fit leaned on the too-sticky drivetrain). Value =
     # dead-zone fraction x stall x 2 motors.
+    # KNOWN LIMIT (Urs, 2026-08-28): the ~50:1 ratio makes real gearbox
+    # friction ASYMMETRIC -- small seen from the driving motor, huge seen
+    # from the backdriven output -- and frictionloss is symmetric. This
+    # value is the DRIVE-side number; robot/sysid_backlash_side.py
+    # measures the backdrive breakaway to quantify how wrong that is.
     wheel_frictionloss: float = field(default=0.09, metadata=_p(
         MEASURED, "N*m, run 38 dead zone x run 38 stall (provisional "
                   "pending the v2 stall probe rerun)"))

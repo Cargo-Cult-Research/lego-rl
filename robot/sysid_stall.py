@@ -11,22 +11,28 @@ SETUP (one-time, ~5 min):
   1. Pull the LEFT wheel (port A) off its axle and fix a Technic beam to
      the axle in its place, as a lever.
   2. Weigh the robot down or hold it so the chassis CANNOT rotate.
-  3. Rest the lever tip on the kitchen scale so that driving the motor
-     presses the tip DOWN into the scale. Tare the scale with the motor
-     idle.
+  3. Position the lever so its tip hangs ~1 cm ABOVE the kitchen scale,
+     oriented so that driving the motor forward presses the tip DOWN
+     into the scale. Tare the empty scale. The lever stays up on its own
+     (this gearbox holds anything) and each step drives it down.
   4. MEASURE AND WRITE DOWN the lever arm L: axle center to the contact
      point on the scale, in mm (hole pitch is 8 mm -- counting holes
      works: n-th hole center = n*8 mm from the axle hole).
 
-RUN. Before every step the motor blips in REVERSE to unwind the gear
-train. The lever will lift off the scale and STAY THERE -- this motor
-does not backdrive under a lever's weight; nothing "falls back". During
-the RED rest, press the lever gently back down until it rests on the
-scale. Then GREEN = the hold: read the scale, WRITE DOWN the grams next
-to the pass+duty it prints. Without the unwind, steps below the ~22%
-breakaway (run 17) just re-read whatever wind-up the previous step
-froze into the train -- the first session's 15/20/25% all reading
-~50 g was exactly that.
+RUN -- hands-free (v3, Urs's protocol). Before every step the motor
+blips in REVERSE, lifting the lever off the scale, where it STAYS (this
+motor holds anything; nothing falls back). Each step then DRIVES the
+lever down from above into the scale and stalls against it: read the
+scale during the GREEN hold, write grams next to the pass+duty printed.
+You never touch the lever between steps.
+
+Two things are data, not failures: a step too weak to bring the lever
+down to the scale at all reads ~0 g -- that is the dead-zone boundary
+seen directly. And every step approaches from the same side with
+freshly unwound backlash, which is the whole point: the first session's
+15/20/25% all reading the same ~50 g was frozen wind-up re-read three
+times (below breakaway the rotor cannot move, so the scale cannot
+change).
 
 The program verifies the motor is actually stalled: it prints how far
 the encoder crept during each hold. A few degrees is settling; tens of
@@ -61,28 +67,30 @@ UNWIND_DUTY = -25
 UNWIND_MS = 250
 
 print("battery mV:", hub.battery.voltage())
-print("stall probe, port A. Schedule:", DUTIES, "x", PASSES, "passes")
-print("Each step: reverse blip (lever hops -- let it settle back on the")
-print("scale), RED rest, then GREEN hold: READ THE SCALE, write grams.")
-print("S,pass,duty,battery_mV,angle_crept_deg")
+print("stall probe v3 (hands-free), port A. Schedule:", DUTIES,
+      "x", PASSES, "passes")
+print("Lever starts ABOVE the scale and drives down into it each step.")
+print("READ THE SCALE during each GREEN hold; write grams next to the")
+print("pass+duty. ~0 g = the step could not reach the scale (dead zone).")
+print("S,pass,duty,battery_mV,angle_moved_deg")
 
 for p in range(PASSES):
     for duty in DUTIES:
-        left.dc(UNWIND_DUTY)          # unwind the train; lever lifts
+        left.dc(UNWIND_DUTY)          # unwind + lift; the lever stays up
         wait(UNWIND_MS)
         left.dc(0)
         left.stop()
-        hub.light.on(Color.RED)       # settle: lever back on the scale
+        hub.light.on(Color.RED)
         wait(REST_MS)
         hub.light.on(Color.GREEN)
         left.reset_angle(0)
-        left.dc(duty)
+        left.dc(duty)                 # drive down into the scale, stall
         wait(HOLD_MS)
         batt = hub.battery.voltage()
-        crept = left.angle()
-        left.dc(0)
+        moved = left.angle()          # lift-arc + wind-up; big and positive
+        left.dc(0)                    # means it reached the scale
         left.stop()
-        print("S,", p, ",", duty, ",", batt, ",", crept)
+        print("S,", p, ",", duty, ",", batt, ",", moved)
 
 hub.light.on(Color.BLUE)
 print("done. Now: reply with grams per duty step AND the lever arm L in mm.")
