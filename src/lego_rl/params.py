@@ -102,10 +102,12 @@ class PhysicalParams:
     # with gain, which is what eleven runs of hardware kept showing), and
     # amplitude set by the width of the play.
     #
-    # The encoder is on the motor side of the gearbox, so while the play is
-    # being taken up the encoder reports rotation the WHEEL is not doing. The
-    # controller's wheel-angle and wheel-speed terms are therefore reading a
-    # signal that is partly fiction, twice per oscillation.
+    # RUN 40 (2026-08-27) FLIPPED THE TOPOLOGY: the encoder rides the
+    # OUTPUT side of the play (a hand-wiggle within the free play registers
+    # on angle()), so the encoder tells the truth about the wheel and it is
+    # the MOTOR TORQUE that arrives late through the gap. The paragraph
+    # this replaces claimed the reverse (encoder reporting fictional wheel
+    # motion) -- that story is dead; env._true_state reads wheel + lash.
     # UN-RETIRED 2026-08-24. It was retired on the strength of a probe that
     # cannot support the conclusion:
     #
@@ -125,8 +127,9 @@ class PhysicalParams:
     # stand with 2 deg of play -- but the robot does, so the sim was wrong; see
     # the solreflimit note in model.py for what was actually broken.
     motor_backlash_deg: float = field(default=1.0, metadata=_p(
-        MEASURED, "by hand (half-width of the deadband at the wheel); the "
-                  "1 deg encoder cannot see it"))
+        MEASURED, "by hand (half-width at the wheel); run 40's wiggle saw "
+                  "~4 deg total span on the encoder (upper half of the "
+                  "felt range; may include mesh elasticity)"))
     # Contact time constant for the deadband's end stops. NOT a free knob: at
     # MuJoCo's 0.02 s default the stop is so soft that the gap width stops
     # mattering, which is exactly how the deadband got wrongly written off.
