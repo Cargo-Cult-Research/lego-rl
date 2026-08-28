@@ -1,0 +1,14 @@
+{
+  "n": 41,
+  "title": "Backdrive breakaway: 0.074 N*m per motor, asymmetry only 1.7x -- measured by hand and scale, no script",
+  "date": "2026-08-27",
+  "script": "none -- operator protocol (Urs): press the lever onto the kitchen scale until the arm breaks free; the scale's reading at slip IS the breakaway force. Lever 58 mm, 5 reps.",
+  "question": "How much external torque does it take to backdrive the L motor's gearbox from the output side -- i.e. how wrong is the sim's symmetric frictionloss, which carries only the drive-side number?",
+  "verdict": "progress",
+  "headline": "120, 130, 140, 127, 135 g at 58 mm: backdrive breakaway = 0.074 +- 0.004 N*m per motor. Against the drive-side dead zone (12-15% duty x 0.316 stall = 0.038-0.047 N*m), the asymmetry is only ~1.7x -- despite the ~50:1 ratio, so most of the friction lives in the output-side stages, not the rotor. Two loops close: run 36's topples put ~0.089 N*m per motor on the gearboxes at 70 deg, just past this breakaway, exactly matching the 1-2 deg of creep they logged; and the sim's symmetric frictionloss is now BOUNDED as <2x wrong depending on direction, tolerable and randomized across (DR 0.06-0.15 total). A probe script was drafted and scrapped twice for this measurement; the kitchen scale needed neither an encoder trigger nor an LED.",
+  "series": [],
+  "media": {},
+  "hub_output": [
+    "operator record: 120, 130, 140, 127, 135 g at slip; lever arm 58 mm"
+  ]
+}

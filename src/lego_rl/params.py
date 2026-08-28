@@ -217,11 +217,12 @@ class PhysicalParams:
     # landed at ~55% duty against the real ~22% (audit 2026-08-28, flagged
     # by Urs after the fit leaned on the too-sticky drivetrain). Value =
     # dead-zone fraction x stall x 2 motors.
-    # KNOWN LIMIT (Urs, 2026-08-28): the ~50:1 ratio makes real gearbox
-    # friction ASYMMETRIC -- small seen from the driving motor, huge seen
-    # from the backdriven output -- and frictionloss is symmetric. This
-    # value is the DRIVE-side number; robot/sysid_backlash_side.py
-    # measures the backdrive breakaway to quantify how wrong that is.
+    # ASYMMETRY, MEASURED (run 41): backdriving the output takes 0.074
+    # N*m per motor vs 0.038-0.047 driving -- only ~1.7x, so most of the
+    # friction lives output-side, not at the rotor. frictionloss is
+    # symmetric; carrying the drive-side value is therefore at most ~2x
+    # wrong depending on direction. The DR range spans both sides; an
+    # asymmetric-friction callback is not worth building at this size.
     wheel_frictionloss: float = field(default=0.09, metadata=_p(
         MEASURED, "N*m, run 38 dead zone x run 38 stall (provisional "
                   "pending the v2 stall probe rerun)"))
@@ -385,7 +386,7 @@ class DomainRandomization:
     head_mass: tuple = (0.008, 0.025)
     # Gearbox friction spans the run-38 measurement uncertainty (dead zone
     # 11.5-18% x stall 0.29-0.39 x 2 motors).
-    wheel_frictionloss: tuple = (0.06, 0.14)
+    wheel_frictionloss: tuple = (0.06, 0.15)
     # Contact params get randomized around whatever fit_contacts.py lands
     # on -- a collision policy that only survives one wall stiffness has
     # overfit to the solver (same lesson as backlash_solref_s).
