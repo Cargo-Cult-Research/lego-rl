@@ -79,8 +79,10 @@ class PhysicalParams:
     # --- motors (2x Technic L motor, device id 46, one per wheel, direct
     #     drive, electrically synced; values below are PER MOTOR) ---
     n_motors: int = field(default=2, metadata=_p(MEASURED))
-    stall_torque: float = field(default=0.25, metadata=_p(
-        GUESS, "community numbers vary; lever + kitchen scale would settle it"))
+    stall_torque: float = field(default=0.316, metadata=_p(
+        MEASURED, "run 38, 2026-08-27: 58 mm lever + kitchen scale, 7 "
+                  "stalled duty steps, battery-corrected; dead zone 11.5% "
+                  "duty confirmed motor_friction_duty independently"))
     no_load_speed: float = field(default=1443.0, metadata=_p(
         MEASURED, "sysid_motor.py 2026-08-22: measured 1632 deg/s @ 8.37 V, "
                   "17.7 deg/s per duty%, linear above ~50%"))
@@ -374,7 +376,7 @@ class DomainRandomization:
     contact_dampratio: tuple = (0.8, 1.5)
     wall_friction: tuple = (0.3, 1.1)
     wheel_radius_scale: tuple = (0.97, 1.03)
-    stall_torque_scale: tuple = (0.70, 1.10)
+    stall_torque_scale: tuple = (0.88, 1.12)   # measured (run 38), tight now
     no_load_speed_scale: tuple = (0.90, 1.10)
     motor_friction_scale: tuple = (0.5, 2.0)
     ground_friction: tuple = (0.6, 1.4)

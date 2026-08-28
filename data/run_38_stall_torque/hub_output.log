@@ -1,0 +1,14 @@
+Searching for any hub with Pybricks service...
+battery mV: 7422
+stall probe, port A. Schedule: (15, 20, 25, 30, 40, 50, 60)
+READ THE SCALE during each GREEN hold; write grams next to the duty.
+S,duty,battery_mV,angle_crept_deg
+S, 15 , 7367 , 2
+S, 20 , 7348 , 0
+S, 25 , 7324 , 0
+S, 30 , 7299 , 1
+S, 40 , 7233 , 1
+S, 50 , 7130 , 4
+S, 60 , 7026 , 10
+done. Now: reply with grams per duty step AND the lever arm L in mm.
+END

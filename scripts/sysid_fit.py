@@ -46,9 +46,12 @@ OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(
 
 # name, low, high, integer?
 SPACE = [
-    ("stall_torque",       0.10, 0.60, False),
+    # stall_torque MEASURED 0.316 (run 38) -- bounds are measurement
+    # uncertainty, not a search space; the 0.10 the first fit chose is
+    # refuted (it was faking the dead zone, now modeled directly).
+    ("stall_torque",       0.28, 0.36, False),
     ("no_load_speed",      1200, 1700, False),
-    ("motor_friction_duty", 0.0, 0.25, False),
+    ("motor_friction_duty", 0.08, 0.16, False),
     ("wheel_frictionloss",  0.0, 0.30, False),
     # Lower bound 2, not 0: the measured 15-19 ms cmd->motion includes
     # stiction breakaway (now modeled separately), so some latency is

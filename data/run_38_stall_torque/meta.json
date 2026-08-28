@@ -1,0 +1,23 @@
+{
+  "n": 38,
+  "title": "Stall torque measured: 0.32 N*m per motor with an 11.5% dead zone -- the fit's soft motor is refuted, and so is the whole standing recipe",
+  "date": "2026-08-27",
+  "script": "robot/sysid_stall.py (lever 58 mm on port A, kitchen scale; operator ran several sessions, last one counts)",
+  "question": "What is the L motor's real stall torque (GUESS 0.25 since bringup; the joint fit pushed it to 0.10 as one of two load-bearing legs of the first standing sim config)?",
+  "verdict": "guilty",
+  "headline": "Battery-corrected line through 7 stalled duty steps (encoder creep <= 10 deg even at 60%): stall_torque = 0.316 N*m per motor at 7.4 V (0.35 excluding the sticky 15% point), dead zone 11.5% duty -- independently confirming the measured 10% motor friction. The fit's 0.10 is refuted: the real motor is 3x stronger. With run 37 having killed the 4.6 Hz fusion, BOTH legs of the standing plant are now dead -- it was a compensation artifact. The autopsy is productive: the env's motor model applies friction only when moving (kinetic-only), so sim small duties produce torque at zero speed where the real motor produces NOTHING below 11.5%. Scaling stall to 0.10 was the optimizer's way of faking that dead zone. The dead zone is now measured physics and goes into the motor model directly; the refit runs with stall pinned to this measurement and fusion capped at run 37's.",
+  "series": [],
+  "media": {"full_trace": "hub_output.log"},
+  "hub_output": [
+    "battery mV: 7422 (sagged 7367 -> 7026 across the holds; corrected in the fit)",
+    "S,duty,battery_mV,angle_crept_deg",
+    "S, 15 , 7367 , 2   -> 50 g",
+    "S, 20 , 7348 , 0   -> 45 g",
+    "S, 25 , 7324 , 0   -> 56 g",
+    "S, 30 , 7299 , 1   -> 101 g",
+    "S, 40 , 7233 , 1   -> 113 g",
+    "S, 50 , 7130 , 4   -> 210 g",
+    "S, 60 , 7026 , 10  -> 275 g",
+    "lever arm 58 mm; grams are the operator's scale readings (part of the record)"
+  ]
+}

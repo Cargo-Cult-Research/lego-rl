@@ -94,9 +94,12 @@ def sim_impact(p, approach_deg=0.0, seconds=9.0):
         tau = p.stall_torque * (duty * p.battery_v / p.v_nominal
                                 - omega / omega_free)
         tau = float(np.clip(tau, -1.5 * p.stall_torque, 1.5 * p.stall_torque))
-        if abs(omega) > 1e-3:
-            tau -= (p.motor_friction_duty * p.stall_torque
-                    * math.copysign(1.0, omega))
+        fric = p.motor_friction_duty * p.stall_torque
+        if abs(omega) > 0.05:
+            tau -= fric * math.copysign(1.0, omega)
+        else:
+            # static dead zone, run 38 -- see env._motor_torque
+            tau = math.copysign(max(0.0, abs(tau) - fric), tau)
         return tau
 
     rows = []

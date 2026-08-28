@@ -179,8 +179,16 @@ class BalancerEnv(gym.Env):
         tau = stall * (u - omega / omega_free)
         # crude current limit (plugging can exceed stall in the linear model)
         tau = float(np.clip(tau, -1.5 * stall, 1.5 * stall))
-        if abs(omega) > 1e-3:
-            tau -= p.motor_friction_duty * stall * math.copysign(1.0, omega)
+        fric = p.motor_friction_duty * stall
+        if abs(omega) > 0.05:
+            tau -= fric * math.copysign(1.0, omega)
+        else:
+            # STATIC friction = the dead zone run 38 measured (~11.5% duty):
+            # commanded torque below the friction level moves NOTHING. The
+            # old kinetic-only model delivered full torque at stall, and the
+            # first joint fit faked this dead zone by scaling stall to 0.10
+            # -- the robot balances at ~12% mean duty, half of it in here.
+            tau = math.copysign(max(0.0, abs(tau) - fric), tau)
         return tau
 
     def _true_state(self):
