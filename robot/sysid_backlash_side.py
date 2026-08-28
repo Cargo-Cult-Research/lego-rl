@@ -1,34 +1,22 @@
-"""Which side of the gearbox is the encoder on, and what does backdrive cost?
+"""Which side of the gearbox free play is the encoder on?
 
-Two of Urs's questions, one session, motors coasting throughout.
+The sim's lash model ASSUMED the encoder sits on the MOTOR side of the
+play (encoder leads the wheel through the gap) -- an assumption that
+shaped the whole backlash/quantization story, never a measurement.
+ANSWERED 2026-08-27 (run 40): the encoder FOLLOWS a hand-wiggle within
+the free play (155 events over a ~4 deg span in 12 s), so the encoder
+rides the OUTPUT side and it is the ACTUATOR that acts through the gap.
+The model was fixed the same day (env._true_state sums wheel + lash).
+Kept for re-running on other motors/builds.
 
-PHASE A -- WIGGLE (encoder side of the free play). The sim's lash model
-assumes the encoder sits on the MOTOR side of the play, so wiggling the
-output within the free play should NOT register. That is an assumption,
-never a measurement. Protocol: GREEN, 12 s -- grip the lever (or wheel)
-and wiggle it gently WITHIN the free play, without forcing the gearbox
-through breakaway; the script streams the encoder. If angle() follows
-your wiggle, the encoder is output-side and the sim's lash arrangement
-is backwards. If it stays flat while you clearly feel the play, the
-motor-side assumption is confirmed (1 deg encoder quantum limits what
-"flat" means -- wiggle the full play span).
+Protocol: motors coast. GREEN, 12 s -- grip the wheel or a lever on the
+axle and wiggle it gently WITHIN the free play, without forcing the
+gearbox through breakaway. The script streams every encoder change.
+Note down what your hand felt vs what printed (a flat stream while you
+feel play = motor-side encoder; a following stream = output-side).
 
-PHASE B -- BACKDRIVE BREAKAWAY (the asymmetry). Driving, the ~50:1
-ratio works FOR the motor, so gearbox friction shows up as only a
-~10-20% duty dead zone. Backdriving, it works AGAINST you -- that is
-why nothing ever falls back. MuJoCo frictionloss is symmetric, so we
-need the real backdrive number to know how wrong that is. Protocol per
-rep (3 reps): CYAN -- press the lever tip down onto the kitchen scale
-SLOWLY, increasing force; the moment the encoder moves more than
-TRIG_DEG the LED flips MAGENTA: FREEZE and read the scale. That reading
-x lever arm = backdrive breakaway torque. Then BLUE 3 s to reposition
-the lever back up (push it through the gearbox -- it will stay where
-you leave it), and the next rep arms.
-
-Output: phase A stream `A , i , angle_deg` at 50 Hz (only rows where the
-angle changed, to keep BLE quiet), phase B rows `B , rep , trigger_deg`.
-Write down: phase A -- whether you could feel play the encoder did not
-show; phase B -- grams on the scale at each MAGENTA.
+Backdrive breakaway moved to robot/sysid_backdrive.py -- it needs the
+lever-on-scale setup, which conflicts with free wiggling.
 """
 from pybricks.parameters import Color
 from pybricks.tools import StopWatch, wait
@@ -39,11 +27,9 @@ hub = make_hub()
 left, right = make_motors()
 
 WIGGLE_S = 12
-REPS = 3
-TRIG_DEG = 3
 
 print("battery mV:", hub.battery.voltage())
-print("PHASE A: GREEN 12 s -- wiggle the lever gently WITHIN the play.")
+print("GREEN 12 s -- wiggle the wheel/lever gently WITHIN the play.")
 print("A,i,angle_deg")
 
 left.stop()
@@ -60,21 +46,5 @@ for k in range(WIGGLE_S * 50):
         last = a
     wait(max(0, t0 + 20 * (k + 1) - watch.time()))
 
-print("PHASE B:", REPS, "reps. CYAN = press lever onto scale slowly;")
-print("MAGENTA = encoder moved, FREEZE and read grams. BLUE = reposition.")
-print("B,rep,trigger_deg")
-
-for rep in range(REPS):
-    left.stop()
-    right.stop()
-    hub.light.on(Color.CYAN)
-    left.reset_angle(0)
-    while abs(left.angle()) < TRIG_DEG:
-        wait(10)
-    hub.light.on(Color.MAGENTA)      # FREEZE -- read the scale
-    print("B,", rep, ",", left.angle())
-    wait(4000)
-    hub.light.on(Color.BLUE)         # reposition the lever back up
-    wait(3000)
-
+hub.light.on(Color.BLUE)
 print("END")

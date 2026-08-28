@@ -1,0 +1,29 @@
+Searching for any hub with Pybricks service...
+battery mV: 7454
+stall probe v3 (hands-free), port A. Schedule: (12, 15, 18, 22, 26, 30, 35, 40, 50, 60) x 2 passes
+Lever starts ABOVE the scale and drives down into it each step.
+READ THE SCALE during each GREEN hold; write grams next to the
+pass+duty. ~0 g = the step could not reach the scale (dead zone).
+S,pass,duty,battery_mV,angle_moved_deg
+S, 0 , 12 , 7404 , 0
+S, 0 , 15 , 7392 , 25
+S, 0 , 18 , 7380 , 71
+S, 0 , 22 , 7362 , 45
+S, 0 , 26 , 7342 , 72
+S, 0 , 30 , 7320 , 73
+S, 0 , 35 , 7289 , 74
+S, 0 , 40 , 7248 , 74
+S, 0 , 50 , 7150 , 74
+S, 0 , 60 , 7038 , 77
+S, 1 , 12 , 7394 , 0
+S, 1 , 15 , 7386 , 29
+S, 1 , 18 , 7374 , 74
+S, 1 , 22 , 7347 , 75
+S, 1 , 26 , 7336 , 75
+S, 1 , 30 , 7315 , 75
+S, 1 , 35 , 7282 , 74
+S, 1 , 40 , 7242 , 75
+S, 1 , 50 , 7098 , 76
+S, 1 , 60 , 7040 , 77
+done. Now: reply with grams per duty step AND the lever arm L in mm.
+END

@@ -116,6 +116,17 @@ class BalancerEnv(gym.Env):
             self._adr["hub_flex"] = (int(j.qposadr[0]), int(j.dofadr[0]))
         except KeyError:
             self._adr.pop("hub_flex", None)
+        # Present when backlash/compliance is on. Run 40 (wiggle probe)
+        # showed the ENCODER RIDES THE OUTPUT side of the play -- hand-
+        # wiggling the wheel within the free play registers on angle() --
+        # so the encoder reads wheel + lash, and it is the ACTUATOR that
+        # acts through the gap. The model had this backwards (encoder
+        # leading the wheel through the gap) since the lash was built.
+        try:
+            j = self.model.joint("lash")
+            self._adr["lash"] = (int(j.qposadr[0]), int(j.dofadr[0]))
+        except KeyError:
+            self._adr.pop("lash", None)
         self.steps_per_ctrl = max(1, round(1.0 / (p.control_hz * p.physics_dt)))
         self.max_steps = int(self._max_seconds * p.control_hz)
 
@@ -194,7 +205,14 @@ class BalancerEnv(gym.Env):
         qp, qv = self.data.qpos, self.data.qvel
         pa, pd = self._adr["pitch"]
         wa, wd = self._adr["wheel"]
-        return np.array([qp[pa], qv[pd], qp[wa], qv[wd]])
+        wheel_q, wheel_v = qp[wa], qv[wd]
+        # The physical wheel (and, per run 40, the encoder) is the OUTPUT
+        # side: motor joint plus whatever the lash adds.
+        adr = self._adr.get("lash")
+        if adr is not None:
+            wheel_q = wheel_q + qp[adr[0]]
+            wheel_v = wheel_v + qv[adr[1]]
+        return np.array([qp[pa], qv[pd], wheel_q, wheel_v])
 
     def _imu_state(self):
         """What the gyro actually measures: the HUB's absolute angle and rate,

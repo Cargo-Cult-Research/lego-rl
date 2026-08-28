@@ -1,0 +1,15 @@
+{
+  "n": 40,
+  "title": "The encoder rides the OUTPUT side of the play -- the sim's lash model was backwards",
+  "date": "2026-08-27",
+  "script": "robot/sysid_backlash_side.py (wiggle phase; backdrive phase aborted -- setup conflict, split into sysid_backdrive.py)",
+  "question": "Is the encoder on the motor side of the gearbox free play (the sim's lash model ASSUMES it: encoder leads the wheel through the gap) or on the output side? Urs's question and Urs's experiment: wiggle within the play, watch angle().",
+  "verdict": "guilty",
+  "headline": "The encoder FOLLOWS the hand-wiggle: 155 angle-change events in 12 s over a ~4 deg span (-3..+1), tracking the operator's gentle wiggling within the free play. So the encoder sits on the OUTPUT side, the ACTUATOR acts through the gap, and the model had it backwards since the lash was built -- including the run-14-era story that the encoder reports rotation the wheel is not doing (it is the reverse: the encoder tells the truth about the wheel; the motor torque arrives late through the gap). env._true_state now reads wheel+lash. The ~4 deg observed span also sits at the upper half of the felt-play randomization range. Backdrive breakaway (the friction asymmetry number) moved to its own probe.",
+  "series": [],
+  "media": {"full_trace": "hub_output.log"},
+  "hub_output": [
+    "A-stream: 155 events, span -3..+1 deg over 12 s of gentle wiggle",
+    "phase B aborted: lever-on-scale setup conflicts with free wiggling"
+  ]
+}

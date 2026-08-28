@@ -391,7 +391,7 @@ class DomainRandomization:
     contact_dampratio: tuple = (0.8, 1.5)
     wall_friction: tuple = (0.3, 1.1)
     wheel_radius_scale: tuple = (0.97, 1.03)
-    stall_torque_scale: tuple = (0.88, 1.12)   # measured (run 38), tight now
+    stall_torque_scale: tuple = (0.85, 1.20)   # runs 38-39 agree only to ~15%
     no_load_speed_scale: tuple = (0.90, 1.10)
     motor_friction_scale: tuple = (0.5, 2.0)
     ground_friction: tuple = (0.6, 1.4)

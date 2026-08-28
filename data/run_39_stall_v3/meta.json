@@ -1,0 +1,17 @@
+{
+  "n": 39,
+  "title": "Stall v3 (hands-free): dead zone pinned at 12-15%, stall reconciled at 0.29-0.36, and an unexplained mid-band plateau",
+  "date": "2026-08-27",
+  "script": "robot/sysid_stall.py v3 (drive-down protocol, Urs's design), lever 58 mm",
+  "question": "Rerun of run 38 with per-step unwind and drive-down-from-above, dense low end, two passes: where is the dead zone really, and does the stall slope hold up?",
+  "verdict": "progress",
+  "headline": "Drive-side dead zone is now solid: 12% duty cannot move the lever at all (angle_moved 0 both passes), 15% barely (25-29 deg travel, 55-65 g) -- breakaway 12-15%, bracketing run 38's 11.5% and run 17's motor-side 22%-wind-up threshold from below. Stall reconciles across all three sessions when computed from the 60% readings with a 13% dead zone: 0.29-0.36 N*m, so the 0.316 default stands. NOT explained: both passes plateau at ~150 g across 26-40% duty (battery-corrected), then rise again at 50-60%; candidates are contact-angle skid (the lever meets the scale at an angle in this protocol) or hub current limiting. The line-fit slopes disagree across sessions (0.17-0.39) because of this -- the lever+scale method has a geometry confound; the invariants (dead zone, 60% torque) are what to trust. Operator notes: the two 12% no-shows each left the arm backed further up (unwind without recovery) and it was manually repositioned; scale zeros were not logged.",
+  "series": [],
+  "media": {"full_trace": "hub_output.log"},
+  "hub_output": [
+    "S,pass,duty,battery_mV,angle_moved_deg  + operator grams:",
+    "pass0: 12:0g?(no reach) 15:65 18:102 22:111 26:155 30:150 35:154 40:154 50:180 60:216",
+    "pass1: 12:0g?(no reach) 15:55 18:113 22:142 26:147 30:146 35:145 40:153 50:196 60:224",
+    "angle_moved: 12% -> 0 deg both passes; 15% -> 25-29; 18-60% -> ~71-77 (consistent geometry)"
+  ]
+}
