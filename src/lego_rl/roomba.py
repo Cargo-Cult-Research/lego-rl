@@ -147,12 +147,8 @@ class RoombaEnv(gym.Env):
         u = duty * p.battery_v / p.v_nominal
         tau = p.stall_torque * (u - omega / math.radians(p.no_load_speed))
         tau = float(np.clip(tau, -1.5 * p.stall_torque, 1.5 * p.stall_torque))
-        fric = p.motor_friction_duty * p.stall_torque
-        if abs(omega) > 0.05:
-            tau -= fric * math.copysign(1.0, omega)
-        else:
-            # static dead zone, run 38 -- see env._motor_torque
-            tau = math.copysign(max(0.0, abs(tau) - fric), tau)
+        # No friction here: it lives once, as frictionloss on the spin
+        # joints -- see env._motor_torque for the double-counting story.
         return tau
 
     def _obs(self):

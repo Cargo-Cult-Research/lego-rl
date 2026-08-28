@@ -179,16 +179,15 @@ class BalancerEnv(gym.Env):
         tau = stall * (u - omega / omega_free)
         # crude current limit (plugging can exceed stall in the linear model)
         tau = float(np.clip(tau, -1.5 * stall, 1.5 * stall))
-        fric = p.motor_friction_duty * stall
-        if abs(omega) > 0.05:
-            tau -= fric * math.copysign(1.0, omega)
-        else:
-            # STATIC friction = the dead zone run 38 measured (~11.5% duty):
-            # commanded torque below the friction level moves NOTHING. The
-            # old kinetic-only model delivered full torque at stall, and the
-            # first joint fit faked this dead zone by scaling stall to 0.10
-            # -- the robot balances at ~12% mean duty, half of it in here.
-            tau = math.copysign(max(0.0, abs(tau) - fric), tau)
+        # NO friction here. The gearbox friction is ONE physical thing seen
+        # from three sides -- drive-side dead zone (run 38: ~11.5% duty),
+        # holding torque (a lever on the axle does NOT fall, run 38 setup),
+        # backdrive resistance (rolling the robot needs a two-handed press,
+        # run 37 note) -- and it lives ONCE, as frictionloss on the wheel
+        # joint, which gives all three natively. This function briefly
+        # subtracted friction too; with both, sim breakaway landed at ~55%
+        # duty against the real ~22% (audit 2026-08-28) and the joint fit
+        # leaned on the too-sticky drivetrain. Urs flagged it.
         return tau
 
     def _true_state(self):

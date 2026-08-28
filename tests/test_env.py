@@ -193,7 +193,10 @@ def test_drivetrain_windup_matches_measured_stiffness():
     from lego_rl.params import nominal_params
 
     from dataclasses import replace
-    p = replace(nominal_params(), drivetrain_stiffness=2.90)   # default is off
+    # Spring in isolation: joint friction off, or sub-breakaway torque
+    # never reaches it (which is the second assertion).
+    p = replace(nominal_params(), drivetrain_stiffness=2.90,
+                wheel_frictionloss=0.0)
     m = mujoco.MjModel.from_xml_string(build_mjcf(p))
     d = mujoco.MjData(m)
     la = m.joint("lash").qposadr[0]
@@ -206,6 +209,18 @@ def test_drivetrain_windup_matches_measured_stiffness():
     assert abs(windup - expected) < 0.35 * expected, (
         f"wind-up {math.degrees(windup):.2f} deg, expected "
         f"{math.degrees(expected):.2f} deg for tau/k")
+    # With the measured gearbox friction on the joint, the same
+    # sub-breakaway torque winds up (almost) NOTHING -- run 17's stiction
+    # finding, now a property of the model instead of a surprise.
+    p2 = replace(p, wheel_frictionloss=0.09)
+    m2 = mujoco.MjModel.from_xml_string(build_mjcf(p2))
+    d2 = mujoco.MjData(m2)
+    la2 = m2.joint("lash").qposadr[0]
+    d2.ctrl[0] = tau
+    for _ in range(400):
+        mujoco.mj_step(m2, d2)
+    assert abs(float(d2.qpos[la2])) < 0.3 * expected, (
+        "sub-breakaway torque should stay stiction-locked (run 17)")
 
 
 def test_wheel_never_collides_with_the_chassis():

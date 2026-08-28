@@ -49,10 +49,13 @@ SPACE = [
     # stall_torque MEASURED 0.316 (run 38) -- bounds are measurement
     # uncertainty, not a search space; the 0.10 the first fit chose is
     # refuted (it was faking the dead zone, now modeled directly).
-    ("stall_torque",       0.28, 0.36, False),
+    ("stall_torque",       0.28, 0.40, False),
     ("no_load_speed",      1200, 1700, False),
-    ("motor_friction_duty", 0.08, 0.16, False),
-    ("wheel_frictionloss",  0.0, 0.30, False),
+    # ONE gearbox friction, at the joint, bounded by the run-38
+    # measurement (dead zone 11.5-18% x stall x 2 motors). The torque map
+    # carries no friction of its own anymore -- with both, sim breakaway
+    # was ~55% duty vs the real ~22% and the fit welded the drivetrain.
+    ("wheel_frictionloss", 0.06, 0.14, False),
     # Lower bound 2, not 0: the measured 15-19 ms cmd->motion includes
     # stiction breakaway (now modeled separately), so some latency is
     # honestly attributable elsewhere -- but a fit at delay 0 would just be

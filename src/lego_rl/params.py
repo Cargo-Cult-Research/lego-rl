@@ -89,7 +89,9 @@ class PhysicalParams:
     v_nominal: float = field(default=7.4, metadata=_p(
         DATASHEET, "anchor from the Pybricks reference dc() battery scaling"))
     motor_friction_duty: float = field(default=0.10, metadata=_p(
-        MEASURED, "sysid_motor.py: no motion at 10% duty, kinetic intercept 7.4%"))
+        MEASURED, "sysid_motor.py: no motion at 10% duty, kinetic intercept "
+                  "7.4%. NOT applied in the torque map -- realized once as "
+                  "wheel_frictionloss on the joint (see that field)"))
     battery_v: float = field(default=8.37, metadata=_p(
         MEASURED, "8366-8379 mV across bringup runs; 6xAA: ~9.5 fresh, ~6.5 dying"))
 
@@ -202,14 +204,19 @@ class PhysicalParams:
     motor_inertia_mult: float = field(default=0.3, metadata=_p(
         INFERRED, "x robot inertia reflected at the wheel; from the measured "
                   "mode, not weighed"))
-    # Static + coulomb friction on the WHEEL joint itself (gearbox drag,
-    # motor-to-chassis). Run 17 measured a ~22% duty breakaway and run 36
-    # showed the drivetrain stays locked through a whole topple, so the
-    # mechanism is real; its joint-level torque is a FIT quantity. Default
-    # off until the sysid fit lands -- one single-knob sweep already showed
-    # it does not, alone, explain the lag-fragility.
-    wheel_frictionloss: float = field(default=0.0, metadata=_p(
-        INFERRED, "N*m; sysid_fit.py fits it against runs 35/36"))
+    # THE gearbox friction, once, at the joint. One physical quantity seen
+    # from three sides -- drive-side dead zone (run 38: ~11.5% duty,
+    # provisionally up to ~18% pending the v2 probe), holding torque (a
+    # lever on the off axle does NOT fall; this motor holds anything),
+    # backdrive resistance (rolling the robot needs a real press, run 37
+    # note) -- and MuJoCo frictionloss gives all three natively. It must
+    # NOT also appear in the duty->torque map: with both, sim breakaway
+    # landed at ~55% duty against the real ~22% (audit 2026-08-28, flagged
+    # by Urs after the fit leaned on the too-sticky drivetrain). Value =
+    # dead-zone fraction x stall x 2 motors.
+    wheel_frictionloss: float = field(default=0.09, metadata=_p(
+        MEASURED, "N*m, run 38 dead zone x run 38 stall (provisional "
+                  "pending the v2 stall probe rerun)"))
 
     # The hub's imu.rotation() accel fusion, as a complementary-filter
     # crossover (0 = pure gyro integral). MEASURED by run 37's slide
@@ -368,6 +375,9 @@ class DomainRandomization:
     frame_com_z: tuple = (0.045, 0.075)
     head_com_z: tuple = (0.125, 0.165)
     head_mass: tuple = (0.008, 0.025)
+    # Gearbox friction spans the run-38 measurement uncertainty (dead zone
+    # 11.5-18% x stall 0.29-0.39 x 2 motors).
+    wheel_frictionloss: tuple = (0.06, 0.14)
     # Contact params get randomized around whatever fit_contacts.py lands
     # on -- a collision policy that only survives one wall stiffness has
     # overfit to the solver (same lesson as backlash_solref_s).
@@ -438,6 +448,7 @@ class DomainRandomization:
             contact_timeconst=u(self.contact_timeconst),
             contact_dampratio=u(self.contact_dampratio),
             wall_friction=u(self.wall_friction),
+            wheel_frictionloss=u(self.wheel_frictionloss),
             wheel_radius=p.wheel_radius * u(self.wheel_radius_scale),
             stall_torque=p.stall_torque * u(self.stall_torque_scale),
             no_load_speed=p.no_load_speed * u(self.no_load_speed_scale),

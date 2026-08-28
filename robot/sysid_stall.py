@@ -19,12 +19,14 @@ SETUP (one-time, ~5 min):
      works: n-th hole center = n*8 mm from the axle hole).
 
 RUN. Before every step the motor blips in REVERSE to unwind the gear
-train (the lever hops off the scale -- let it fall back and settle
-during the RED rest; nudge it flat if it lands crooked). Then GREEN =
-the hold: read the scale, WRITE DOWN the grams next to the pass+duty it
-prints. Without the unwind, steps below the ~22% breakaway (run 17)
-just re-read whatever wind-up the previous step froze into the train --
-the first session's 15/20/25% all reading ~50 g was exactly that.
+train. The lever will lift off the scale and STAY THERE -- this motor
+does not backdrive under a lever's weight; nothing "falls back". During
+the RED rest, press the lever gently back down until it rests on the
+scale. Then GREEN = the hold: read the scale, WRITE DOWN the grams next
+to the pass+duty it prints. Without the unwind, steps below the ~22%
+breakaway (run 17) just re-read whatever wind-up the previous step
+froze into the train -- the first session's 15/20/25% all reading
+~50 g was exactly that.
 
 The program verifies the motor is actually stalled: it prints how far
 the encoder crept during each hold. A few degrees is settling; tens of
